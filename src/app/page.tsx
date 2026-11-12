@@ -12,7 +12,7 @@ export default function HomePage() {
 
   const totalRevenue = org.documents
     .filter((d) => d.docType === "invoice")
-    .reduce((acc, d) => acc + d.paid, 0);
+    .reduce((acc, d) => acc + d.paidTotal, 0);
   const totalReceivables = org.documents
     .filter((d) => d.docType === "invoice")
     .reduce((acc, d) => acc + d.balance, 0);
