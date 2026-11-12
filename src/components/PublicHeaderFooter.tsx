@@ -78,29 +78,19 @@ export function PublicNavbar() {
           })}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <a
-            href={OFFICIAL_WHATSAPP_ACCOUNT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] border border-[#25D366]/40 transition-colors"
-          >
-            <WhatsAppIcon className="w-4 h-4 shrink-0" />
-            <span>WhatsApp</span>
-          </a>
-
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border border-slate-300 hover:bg-slate-100 text-[#0B1F3A] transition-colors"
+            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] transition-colors"
           >
-            <span>Se connecter</span>
+            Se connecter
           </Link>
 
           <Link
             href="/signup"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
           >
-            <span>S&apos;inscrire Gratuit</span>
+            S&apos;inscrire Gratuit
           </Link>
         </div>
       </div>
