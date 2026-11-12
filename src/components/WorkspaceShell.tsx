@@ -1,40 +1,61 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAppState } from "./AppContext";
 import { BrandLogo } from "./PublicHeaderFooter";
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { userEmail, org, loadingData, signOutUser } = useAppState();
+  const router = useRouter();
+  const { userEmail, isAdmin, org, loadingData, signOutUser } = useAppState();
+
+  useEffect(() => {
+    if (!loadingData && (!userEmail || !isAdmin)) {
+      router.replace("/login");
+    }
+  }, [loadingData, userEmail, isAdmin, router]);
 
   const navItems = [
-    { href: "/app", label: "Tableau de bord", icon: "📊" },
-    { href: "/app/catalogue", label: "Produits", icon: "📦" },
-    { href: "/app/documents", label: "Commandes / Factures", icon: "🧾" },
-    { href: "/app/clients", label: "Clients", icon: "👥" },
-    { href: "/app/paiements", label: "Paiements", icon: "💳" },
+    { href: "/admin", label: "Vue Admin Globale", icon: "👑" },
+    { href: "/dashboard", label: "Tableau de bord", icon: "📊" },
+    { href: "/products", label: "Produits & Stock", icon: "📦" },
+    { href: "/invoices", label: "Factures", icon: "🧾" },
+    { href: "/clients", label: "Clients", icon: "👥" },
+    { href: "/app/paiements", label: "Paiements & Reçus", icon: "💳" },
     {
       href: "/app/relances",
       label: "Relances WhatsApp",
       icon: "💬",
       badge: org.reminders.length > 0 ? org.reminders.length : undefined,
     },
-    { href: "/app/ia", label: "Assistant IA", icon: "✨" },
     { href: "/app/parametres", label: "Paramètres & Fapshi", icon: "⚙️" },
-    { href: "/app/abonnement", label: "Abonnement", icon: "⭐" },
-    { href: "/app/historique", label: "Journal d'audit", icon: "🛡️" },
   ];
 
   const mobileBottomItems = [
-    { href: "/app", label: "Accueil", icon: "📊" },
-    { href: "/app/catalogue", label: "Produits", icon: "📦" },
-    { href: "/app/documents", label: "Factures", icon: "🧾" },
-    { href: "/app/clients", label: "Clients", icon: "👥" },
-    { href: "/app/parametres", label: "Paramètres", icon: "⚙️" },
+    { href: "/admin", label: "Admin", icon: "👑" },
+    { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/products", label: "Produits", icon: "📦" },
+    { href: "/invoices", label: "Factures", icon: "🧾" },
+    { href: "/clients", label: "Clients", icon: "👥" },
   ];
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-xs text-slate-500">
+        Vérification des droits administrateur Supabase...
+      </div>
+    );
+  }
+
+  if (!userEmail || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-xs text-slate-500">
+        Redirection vers /login...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#F8FAFC]">
@@ -46,24 +67,24 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
         <div className="p-4 border-b border-slate-800/80 bg-[#132D54]/60">
           <div className="text-[11px] uppercase tracking-wider text-emerald-400 font-semibold mb-1">
-            {org.isLiveDb ? "🟢 Connecté à Supabase" : "🔒 Authentification requise"}
+            🟢 Admin connecté (RLS actif)
           </div>
           <div className="font-bold text-sm text-white truncate">
-            {org.name || userEmail || "Mon Espace"}
+            {org.name || userEmail}
           </div>
-          {org.city ? (
-            <div className="text-xs text-slate-300 mt-0.5 truncate">
-              📍 {org.city}
-            </div>
-          ) : null}
+          <div className="text-xs text-slate-300 mt-0.5 truncate">
+            {userEmail}
+          </div>
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const active =
-              item.href === "/app"
-                ? pathname === "/app"
-                : pathname.startsWith(item.href);
+              pathname === item.href ||
+              (item.href === "/dashboard" && pathname === "/app") ||
+              (item.href === "/products" && pathname === "/app/catalogue") ||
+              (item.href === "/invoices" && pathname === "/app/documents") ||
+              (item.href === "/clients" && pathname === "/app/clients");
             return (
               <Link
                 key={item.href}
@@ -89,30 +110,16 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2 text-xs">
-          <Link
-            href="/admin"
-            className="flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 font-semibold"
+          <button
+            type="button"
+            onClick={async () => {
+              await signOutUser();
+              router.replace("/login");
+            }}
+            className="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-red-300 hover:bg-red-500/15 font-bold"
           >
-            <span>👑 Super-Admin</span>
-            <span>→</span>
-          </Link>
-          {userEmail ? (
-            <button
-              type="button"
-              onClick={signOutUser}
-              className="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-red-300 hover:bg-red-500/15"
-            >
-              <span className="truncate">🚪 Déconnexion ({userEmail})</span>
-            </button>
-          ) : (
-            <Link
-              href="/connexion"
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-emerald-300 hover:bg-slate-800 font-semibold"
-            >
-              <span>🔑 Se connecter</span>
-              <span>→</span>
-            </Link>
-          )}
+            <span className="truncate">🚪 Déconnexion ({userEmail})</span>
+          </button>
         </div>
       </aside>
 
@@ -124,32 +131,22 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
               <BrandLogo />
             </div>
             <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-600">
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold ${
-                  org.isLiveDb
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-slate-100 text-slate-700 border border-slate-200"
-                }`}
-              >
-                <span>{org.isLiveDb ? "🟢" : "⚪"}</span>
-                <span>
-                  {org.isLiveDb
-                    ? `${org.name} (${userEmail})`
-                    : "Non connecté"}
-                </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span>🔒</span>
+                <span>Admin : {userEmail}</span>
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
-              href="/app/catalogue"
+              href="/products"
               className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
             >
               + Produit
             </Link>
             <Link
-              href="/app/documents"
+              href="/invoices"
               className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
             >
               + Facture
@@ -158,49 +155,14 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {loadingData ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-500">
-              Chargement de vos données depuis Supabase...
-            </div>
-          ) : !userEmail ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center max-w-lg mx-auto my-8 space-y-4 shadow-sm">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-[#0B1F3A] flex items-center justify-center text-xl mx-auto">
-                🔐
-              </div>
-              <h2 className="text-lg font-extrabold text-[#0B1F3A]">
-                Connectez-vous à votre compte
-              </h2>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Cette application utilise uniquement vos vraies données Supabase (aucune donnée de démonstration). Connectez-vous ou créez votre compte pour accéder à votre espace.
-              </p>
-              <div className="flex justify-center gap-3 pt-2">
-                <Link
-                  href="/connexion"
-                  className="px-5 py-2.5 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold"
-                >
-                  Se connecter
-                </Link>
-                <Link
-                  href="/inscription"
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
-                >
-                  Créer un compte
-                </Link>
-              </div>
-            </div>
-          ) : (
-            children
-          )}
+          {children}
         </main>
       </div>
 
       {/* Navigation mobile */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid grid-cols-5 py-1.5 px-1 no-print shadow-lg">
         {mobileBottomItems.map((item) => {
-          const active =
-            item.href === "/app"
-              ? pathname === "/app"
-              : pathname.startsWith(item.href);
+          const active = pathname === item.href;
           return (
             <Link
               key={item.href}

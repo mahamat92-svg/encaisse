@@ -44,7 +44,7 @@ export default function PublicInvoicePage() {
   const params = useParams<{ token: string }>();
   const searchParams = useSearchParams();
   const token = params?.token ?? "";
-  const { org: activeOrg, recordPaymentRecord } = useAppState();
+  const { org: activeOrg, isAdmin, recordPaymentRecord } = useAppState();
 
   const [view, setView] = useState<PublicDocPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,12 +139,14 @@ export default function PublicInvoicePage() {
           <p className="text-xs text-slate-500">
             Ce lien de facture n&apos;existe pas ou le document est encore à l&apos;état de brouillon.
           </p>
-          <Link
-            href="/app/documents"
-            className="inline-block px-4 py-2 rounded-xl bg-[#0B1F3A] text-white text-xs font-bold"
-          >
-            ← Retour aux factures
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/invoices"
+              className="inline-block px-4 py-2 rounded-xl bg-[#0B1F3A] text-white text-xs font-bold"
+            >
+              ← Retour aux factures
+            </Link>
+          ) : null}
         </div>
       </div>
     );
@@ -155,10 +157,10 @@ export default function PublicInvoicePage() {
       ? window.location.origin
       : "https://encaisse.vercel.app";
 
-  const currentUrl = `${origin}/f/${token}`;
+  const currentUrl = `${origin}/pay/${token}`;
   const receiptUrl = recuParam
-    ? `${origin}/f/${token}?recu=${encodeURIComponent(recuParam)}`
-    : `${origin}/f/${token}?payment=success`;
+    ? `${origin}/pay/${token}?recu=${encodeURIComponent(recuParam)}`
+    : `${origin}/pay/${token}?payment=success`;
 
   const matchedDoc = activeOrg.documents.find((d) => d.publicToken === token);
   const clientPhone = matchedDoc?.whatsappPhone || "";
@@ -269,12 +271,18 @@ export default function PublicInvoicePage() {
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Barre d'actions avec FEATURE 1 : Envoyer sur WhatsApp */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm no-print">
-          <Link
-            href="/app/documents"
-            className="text-xs font-bold text-slate-600 hover:text-slate-900"
-          >
-            ← Retour aux factures
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/invoices"
+              className="text-xs font-bold text-slate-600 hover:text-slate-900"
+            >
+              ← Retour aux factures
+            </Link>
+          ) : (
+            <span className="text-xs font-extrabold text-[#0B1F3A]">
+              Facture {view.number}
+            </span>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <WhatsAppShareButton

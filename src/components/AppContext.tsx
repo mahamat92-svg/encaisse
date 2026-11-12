@@ -87,6 +87,7 @@ interface AppState {
   setMode: (m: OrgMode) => void;
   supabaseReady: boolean;
   userEmail: string | null;
+  isAdmin: boolean;
   org: ActiveOrgData;
   loadingData: boolean;
   refreshOrgData: () => Promise<void>;
@@ -137,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocale] = useState<Locale>("fr");
   const [mode, setMode] = useState<OrgMode>("commerce");
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [liveOrg, setLiveOrg] = useState<ActiveOrgData | null>(null);
   const [loadingData, setLoadingData] = useState<boolean>(true);
   const supabaseReady = isSupabaseConfigured();
@@ -144,6 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshOrgData = useCallback(async () => {
     if (!supabaseReady) {
       setLiveOrg(null);
+      setIsAdmin(false);
       setLoadingData(false);
       return;
     }
@@ -157,6 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (!user) {
         setUserEmail(null);
+        setIsAdmin(false);
         setLiveOrg(null);
         setLoadingData(false);
         return;
@@ -164,13 +168,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setUserEmail(user.email ?? null);
 
-      // 1. Chercher l'organisation réelle de l'utilisateur connecté
-      const { data: myMemberships } = await supabase
-        .from("memberships")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-        .limit(1);
+      // Vérifier le rôle admin dans Supabase (platform_admins, profiles.role = 'admin', ou owner de l'organisation)
+      const [{ data: platformAdminFlag }, { data: profileRow }, { data: myMemberships }] =
+        await Promise.all([
+          supabase.rpc("is_platform_admin"),
+          supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+          supabase
+            .from("memberships")
+            .select("org_id, role")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true })
+            .limit(1),
+        ]);
+
+      const profileRole = (profileRow as { role?: string } | null)?.role;
+      const memberRole = myMemberships?.[0]?.role;
+      const metaRole = user.user_metadata?.role;
+      const hasAdminAccess =
+        Boolean(platformAdminFlag) ||
+        profileRole === "admin" ||
+        metaRole === "admin" ||
+        memberRole === "owner";
+
+      setIsAdmin(hasAdminAccess);
+      if (!hasAdminAccess) {
+        setLiveOrg(null);
+        setLoadingData(false);
+        return;
+      }
 
       let targetOrgId: string | null = myMemberships?.[0]?.org_id ?? null;
 
@@ -458,6 +483,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
     }
     setUserEmail(null);
+    setIsAdmin(false);
     setLiveOrg(null);
   }, [supabaseReady]);
 
@@ -753,6 +779,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setMode,
         supabaseReady,
         userEmail,
+        isAdmin,
         org: activeOrg,
         loadingData,
         refreshOrgData,

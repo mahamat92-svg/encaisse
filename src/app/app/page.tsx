@@ -209,7 +209,7 @@ export default function DashboardPage() {
                     invoiceNumber: createdSale.invoiceNumber,
                     amount: createdSale.amount,
                     productName: createdSale.productName,
-                    paymentUrl: `${origin}/f/${createdSale.publicToken}`,
+                    paymentUrl: `${origin}/pay/${createdSale.publicToken}`,
                   })}
                   label="Envoyer sur WhatsApp"
                 />
@@ -452,7 +452,7 @@ export default function DashboardPage() {
             {org.documents.slice(0, 5).map((doc) => {
               const productName =
                 doc.lines.map((l) => l.label).join(", ") || "votre commande";
-              const paymentUrl = `${origin}/f/${doc.publicToken}`;
+              const paymentUrl = `${origin}/pay/${doc.publicToken}`;
               const waMsg = buildInvoiceWhatsAppMessage({
                 clientName: doc.clientName,
                 invoiceNumber: doc.number,

@@ -83,17 +83,10 @@ export function PublicNavbar() {
           </button>
 
           <Link
-            href="/connexion"
-            className="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            href="/login"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-extrabold bg-[#0B1F3A] hover:bg-[#132D54] text-white shadow-sm transition-colors"
           >
-            {t.nav.login}
-          </Link>
-
-          <Link
-            href="/app"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
-          >
-            <span>{locale === "fr" ? "Ouvrir l'application" : "Open App"}</span>
+            <span>Se connecter</span>
             <span aria-hidden>→</span>
           </Link>
         </div>
@@ -128,11 +121,11 @@ export function PublicFooter() {
           <BrandLogo light />
           <p className="text-sm text-slate-300 max-w-md leading-relaxed">
             {locale === "fr"
-              ? "Plateforme SaaS de facturation rapide, suivi des créances (« qui me doit combien »), échéanciers scolaires et relances WhatsApp intelligentes avec Mobile Money."
-              : "Fast invoicing SaaS, receivables tracking, school tuition installments, and smart WhatsApp reminders with Mobile Money."}
+              ? "Plateforme SaaS de facturation rapide, suivi des créances, encaissements Fapshi / Mobile Money et relances WhatsApp."
+              : "Fast invoicing SaaS, receivables tracking, Fapshi / Mobile Money collections and WhatsApp reminders."}
           </p>
           <p className="text-xs text-slate-400">
-            🇨🇲 Conçu pour le Cameroun et l&apos;Afrique (XAF / XOF) · Conformité Loi n° 2024/017 sur la protection des données personnelles.
+            🇨🇲 Conçu pour le Cameroun et l&apos;Afrique (XAF) · Sécurité RLS stricte.
           </p>
         </div>
 
@@ -143,22 +136,17 @@ export function PublicFooter() {
           <ul className="space-y-2 text-sm">
             <li>
               <Link href="/services" className="hover:text-white">
-                {locale === "fr" ? "Modes Commerce & Établissement" : "Business & School Modes"}
+                {locale === "fr" ? "Fonctionnalités" : "Features"}
               </Link>
             </li>
             <li>
               <Link href="/tarifs" className="hover:text-white">
-                {locale === "fr" ? "Tarifs en FCFA (0 à 50 000)" : "Pricing in FCFA"}
-              </Link>
-            </li>
-            <li>
-              <Link href="/app/ia" className="hover:text-white">
-                {locale === "fr" ? "Atelier de dictée IA" : "AI Dictation Studio"}
+                {locale === "fr" ? "Tarifs en XAF" : "Pricing in XAF"}
               </Link>
             </li>
             <li>
               <Link href="/assistance" className="hover:text-white">
-                {locale === "fr" ? "Centre d'assistance & FAQ" : "Help Center & FAQ"}
+                {locale === "fr" ? "Centre d'assistance" : "Help Center"}
               </Link>
             </li>
           </ul>
@@ -166,27 +154,12 @@ export function PublicFooter() {
 
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-white mb-3">
-            {locale === "fr" ? "Accès direct" : "Direct Access"}
+            Administration
           </h3>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/inscription" className="hover:text-white">
-                {locale === "fr" ? "Inscription (14 jours Pro offerts)" : "Sign Up (14-day Pro trial)"}
-              </Link>
-            </li>
-            <li>
-              <Link href="/connexion" className="hover:text-white">
-                {locale === "fr" ? "Connexion" : "Sign In"}
-              </Link>
-            </li>
-            <li>
-              <Link href="/app" className="text-emerald-400 hover:text-emerald-300 font-medium">
-                {locale === "fr" ? "Démo interactive →" : "Interactive Demo →"}
-              </Link>
-            </li>
-            <li>
-              <Link href="/admin" className="text-amber-400 hover:text-amber-300 font-medium">
-                {locale === "fr" ? "Espace Super-Administrateur" : "Super Admin Portal"}
+              <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-bold">
+                Se connecter (Admin) →
               </Link>
             </li>
           </ul>
@@ -198,4 +171,3 @@ export function PublicFooter() {
     </footer>
   );
 }
-

@@ -154,7 +154,7 @@ export default function DocumentsPage() {
                 invoiceNumber: lastCreated.invoiceNumber,
                 amount: lastCreated.amount,
                 productName: lastCreated.productName,
-                paymentUrl: `${origin}/f/${lastCreated.publicToken}`,
+                paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
               })}
               label="Envoyer sur WhatsApp"
             />
@@ -422,7 +422,7 @@ export default function DocumentsPage() {
 
           <div className="space-y-3">
             {filteredDocs.map((doc) => {
-              const paymentUrl = `${origin}/f/${doc.publicToken}`;
+              const paymentUrl = `${origin}/pay/${doc.publicToken}`;
               const productName =
                 doc.lines.map((l) => l.label).join(", ") || "votre commande";
               const waMsg = buildInvoiceWhatsAppMessage({
