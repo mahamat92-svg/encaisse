@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { useAppState } from "./AppContext";
 import { getLabels } from "@/lib/i18n";
 import {
-  OFFICIAL_WHATSAPP_ACCOUNT_URL,
+  DEFAULT_MERCHANT_LOCATION_LABEL,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DISPLAY,
   OFFICIAL_WHATSAPP_URL,
 } from "@/lib/format";
@@ -44,7 +45,7 @@ export function BrandLogo({ light = false }: { light?: boolean }) {
 
 export function PublicNavbar() {
   const pathname = usePathname();
-  const { locale, setLocale } = useAppState();
+  const { locale } = useAppState();
   const { t } = getLabels(locale, "commerce");
 
   const links = [
@@ -56,6 +57,31 @@ export function PublicNavbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 no-print">
+      {/* Bandeau supérieur de contact : Localisation manuelle + Email officiel + WhatsApp */}
+      <div className="bg-[#0B1F3A] text-slate-200 text-[11px] sm:text-xs py-1.5 px-4 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold">
+            📍 {DEFAULT_MERCHANT_LOCATION_LABEL}
+          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={`mailto:${OFFICIAL_EMAIL}`}
+              className="font-bold text-emerald-300 hover:underline"
+            >
+              📧 Email: {OFFICIAL_EMAIL}
+            </a>
+            <a
+              href={OFFICIAL_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-white hover:underline"
+            >
+              📱 WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
+            </a>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         <BrandLogo />
 
@@ -78,6 +104,7 @@ export function PublicNavbar() {
           })}
         </nav>
 
+        {/* Toujours afficher "Se connecter" + "S'inscrire Gratuit" côte à côte (Desktop & Mobile) */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <Link
             href="/login"
@@ -124,8 +151,17 @@ export function PublicFooter() {
           <p className="text-sm text-slate-300 max-w-md leading-relaxed">
             Une seule plateforme, tous vos métiers : Encaisse Boutique, École, Clinique, Immobilier, Artisan et ONG — Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp.
           </p>
-          <p className="text-xs text-slate-400">
-            🇨🇲 Conçu pour le Cameroun et l&apos;Afrique (XAF) · Sécurité RLS stricte.
+          <p className="text-xs text-emerald-300 font-semibold">
+            📍 {DEFAULT_MERCHANT_LOCATION_LABEL}
+          </p>
+          <p className="text-xs text-slate-300">
+            📧 Support :{" "}
+            <a
+              href={`mailto:${OFFICIAL_EMAIL}`}
+              className="font-bold text-white hover:underline"
+            >
+              {OFFICIAL_EMAIL}
+            </a>
           </p>
         </div>
 
@@ -140,8 +176,13 @@ export function PublicFooter() {
               </Link>
             </li>
             <li>
-              <Link href="/tarifs" className="hover:text-white">
-                Tarifs en XAF
+              <Link href="/signup" className="hover:text-white font-semibold text-white">
+                Créer mon compte gratuit (/signup)
+              </Link>
+            </li>
+            <li>
+              <Link href="/login" className="hover:text-white">
+                Se connecter (/login)
               </Link>
             </li>
             <li>
@@ -149,20 +190,24 @@ export function PublicFooter() {
                 Centre d&apos;assistance
               </Link>
             </li>
-            <li>
-              <Link href="/login" className="hover:text-white">
-                Connexion Admin (/login)
-              </Link>
-            </li>
           </ul>
         </div>
 
-        {/* 3. FOOTER : Grande section "Contactez-nous" */}
+        {/* Section "Contactez-nous" avec Email officiel + WhatsApp + Ngaoundéré, Adamawa - Cameroun */}
         <div className="md:col-span-4 bg-[#132D54] border border-slate-700/80 rounded-2xl p-5 space-y-3">
           <h3 className="text-base font-extrabold text-white">
             📞 Contactez-nous
           </h3>
           <ul className="space-y-2 text-xs sm:text-sm text-slate-200">
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-400 font-bold">Email :</span>
+              <a
+                href={`mailto:${OFFICIAL_EMAIL}`}
+                className="font-extrabold text-white hover:underline break-all"
+              >
+                {OFFICIAL_EMAIL}
+              </a>
+            </li>
             <li className="flex items-center gap-2">
               <span className="text-emerald-400 font-bold">WhatsApp :</span>
               <a
@@ -175,17 +220,8 @@ export function PublicFooter() {
               </a>
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-emerald-400 font-bold">Email :</span>
-              <a
-                href="mailto:contact@innovtechmha.com"
-                className="hover:underline text-white"
-              >
-                contact@innovtechmha.com
-              </a>
-            </li>
-            <li className="flex items-center gap-2">
               <span className="text-emerald-400 font-bold">Ville :</span>
-              <span className="text-white">Ngaoundéré, Cameroun</span>
+              <span className="text-white">{DEFAULT_MERCHANT_LOCATION_LABEL}</span>
             </li>
           </ul>
           <div className="pt-2">
@@ -203,14 +239,14 @@ export function PublicFooter() {
       </div>
 
       <div className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-400 px-4">
-        © {new Date().getFullYear()} InnovTech MHA Infinity — Tous droits réservés · WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+        © {new Date().getFullYear()} InnovTech MHA Infinity — 📍 {DEFAULT_MERCHANT_LOCATION_LABEL} · 📧 {OFFICIAL_EMAIL} · 📱 WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
       </div>
     </footer>
   );
 }
 
 /**
- * 4. FLOATING BUTTON : Bouton flottant WhatsApp vert en bas à droite sur TOUTES les pages, visible sur mobile
+ * Bouton flottant WhatsApp vert en bas à droite sur TOUTES les pages
  */
 export function FloatingWhatsAppButton() {
   return (

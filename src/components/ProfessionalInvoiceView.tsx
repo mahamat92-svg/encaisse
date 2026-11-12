@@ -7,8 +7,11 @@ import {
   BRAND_COLOR_PALETTE,
   buildInvoiceWhatsAppMessage,
   buildReceiptWhatsAppMessage,
+  DEFAULT_MERCHANT_LOCATION_LABEL,
   formatCFA,
   formatDate,
+  OFFICIAL_EMAIL,
+  OFFICIAL_WHATSAPP_DIGITS,
   OFFICIAL_WHATSAPP_DISPLAY,
   OFFICIAL_WHATSAPP_URL,
   type BrandColorChoice,
@@ -147,11 +150,18 @@ function ProfessionalInvoiceViewInner({
                 data.org?.slogan || footerMeta.slogan || activeOrg.slogan || ""
               ),
               addressCity: String(
-                data.org?.city || activeOrg.city || ""
+                data.org?.city ||
+                activeOrg.city ||
+                DEFAULT_MERCHANT_LOCATION_LABEL
               ),
-              phone: String(data.org?.phone || activeOrg.phone || ""),
+              phone: String(
+                data.org?.phone || activeOrg.phone || OFFICIAL_WHATSAPP_DIGITS
+              ),
               email: String(
-                data.org?.email || footerMeta.email || activeOrg.email || ""
+                data.org?.email ||
+                footerMeta.email ||
+                activeOrg.email ||
+                OFFICIAL_EMAIL
               ),
               rccmNiu: String(
                 data.org?.rccm_niu ||
@@ -316,12 +326,14 @@ function ProfessionalInvoiceViewInner({
     paymentUrl,
     merchantName: invoice.merchant.name,
     merchantCity: invoice.merchant.addressCity,
+    merchantEmail: invoice.merchant.email || OFFICIAL_EMAIL,
   });
 
   const waReceiptMessage = buildReceiptWhatsAppMessage({
     clientName: invoice.clientName,
     amount: invoice.total,
     receiptUrl,
+    merchantEmail: invoice.merchant.email || OFFICIAL_EMAIL,
   });
 
   return (
@@ -601,16 +613,29 @@ function ProfessionalInvoiceViewInner({
                 />
               </div>
 
-              {/* Bas de page /pay/[invoice_id] : Besoin d'aide ? WhatsApp: +235 66 26 85 03 */}
-              <div className="pt-4 border-t border-slate-100 text-center">
-                <a
-                  href={OFFICIAL_WHATSAPP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs sm:text-sm font-extrabold text-[#128C7E] transition-colors"
-                >
-                  <span>💬 Besoin d&apos;aide ? WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}</span>
-                </a>
+              {/* Bas de page /pay/[invoice_id] : Questions ? innovtechmhainfinity92@mail.com - WhatsApp: +235 66 26 85 03 */}
+              <div className="pt-4 border-t border-slate-100 text-center space-y-1.5">
+                <div className="text-xs sm:text-sm font-extrabold text-slate-700">
+                  Questions ?{" "}
+                  <a
+                    href={`mailto:${OFFICIAL_EMAIL}`}
+                    className="text-[#0B1F3A] underline"
+                  >
+                    {OFFICIAL_EMAIL}
+                  </a>{" "}
+                  -{" "}
+                  <a
+                    href={OFFICIAL_WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#128C7E] underline"
+                  >
+                    WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
+                  </a>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  📍 {invoice.merchant.addressCity || DEFAULT_MERCHANT_LOCATION_LABEL}
+                </div>
               </div>
             </div>
           </div>

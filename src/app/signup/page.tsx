@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
 import {
   BUSINESS_SERVICES,
+  COUNTRY_OPTIONS,
+  DEFAULT_MERCHANT_CITY,
+  DEFAULT_MERCHANT_COUNTRY,
+  DEFAULT_MERCHANT_REGION,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
   type BusinessType,
 } from "@/lib/format";
@@ -17,13 +22,13 @@ const METIER_RADIO_OPTIONS: Array<{
   label: string;
   emoji: string;
 }> = [
-  { id: "boutique", label: "Boutique", emoji: "🛒" },
-  { id: "ecole", label: "École", emoji: "🎓" },
-  { id: "clinique", label: "Clinique", emoji: "🏥" },
-  { id: "immobilier", label: "Immobilier", emoji: "🏠" },
-  { id: "artisan", label: "Artisan", emoji: "✂️" },
-  { id: "ong", label: "ONG", emoji: "🤝" },
-];
+    { id: "boutique", label: "Boutique", emoji: "🛒" },
+    { id: "ecole", label: "École", emoji: "🎓" },
+    { id: "clinique", label: "Clinique", emoji: "🏥" },
+    { id: "immobilier", label: "Immobilier", emoji: "🏠" },
+    { id: "artisan", label: "Artisan", emoji: "✂️" },
+    { id: "ong", label: "ONG", emoji: "🤝" },
+  ];
 
 function translateSignupError(msg: string): string {
   const lower = msg.toLowerCase();
@@ -57,6 +62,8 @@ function SignupCardContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [city, setCity] = useState(DEFAULT_MERCHANT_CITY);
+  const [country, setCountry] = useState<string>(DEFAULT_MERCHANT_COUNTRY);
   const [businessType, setBusinessType] = useState<BusinessType>("boutique");
   const [selectedPlan, setSelectedPlan] = useState<string>(planParam);
 
@@ -83,8 +90,10 @@ function SignupCardContent() {
     const cleanCompany = companyName.trim();
     const cleanPhone = whatsappPhone.trim() || OFFICIAL_WHATSAPP_DIGITS;
     const cleanEmail = email.trim();
+    const cleanCity = city.trim() || DEFAULT_MERCHANT_CITY;
+    const cleanCountry = country.trim() || DEFAULT_MERCHANT_COUNTRY;
 
-    if (!cleanFullName || !cleanCompany || !cleanEmail || !password) {
+    if (!cleanFullName || !cleanCompany || !cleanEmail || !password || !cleanCity) {
       setErrorMsg("Veuillez remplir tous les champs obligatoires.");
       return;
     }
@@ -121,6 +130,8 @@ function SignupCardContent() {
             full_name: cleanFullName,
             org_name: cleanCompany,
             phone: cleanPhone,
+            city: cleanCity,
+            country: cleanCountry,
             business_type: businessType,
             org_mode: businessType === "ecole" ? "etablissement" : "commerce",
             role: "admin",
@@ -136,7 +147,6 @@ function SignupCardContent() {
         return;
       }
 
-      // Supabase renvoie identities = [] si l'email existe déjà
       if (
         signUpData?.user &&
         Array.isArray(signUpData.user.identities) &&
@@ -161,14 +171,14 @@ function SignupCardContent() {
       }
 
       if (activeUser) {
-        // 2. Créer l'organisation dans Supabase
+        // 2. Créer l'organisation dans Supabase avec la ville manuelle saisie
         let orgId: string | null = null;
         const { data: createdOrgId } = await supabase.rpc(
           "create_organization",
           {
             p_name: cleanCompany,
             p_mode: businessType === "ecole" ? "etablissement" : "commerce",
-            p_city: "Ngaoundéré",
+            p_city: `${cleanCity}, ${cleanCountry}`,
             p_phone: cleanPhone,
           }
         );
@@ -183,13 +193,16 @@ function SignupCardContent() {
               footer_note: JSON.stringify({
                 businessType,
                 email: cleanEmail,
+                city: cleanCity,
+                region: DEFAULT_MERCHANT_REGION,
+                country: cleanCountry,
                 primaryColor: "green",
               }),
             })
             .eq("id", orgId);
         }
 
-        // 3. Insérer dans la table 'merchant_settings': user_id, company_name, phone, business_type, plan='trial', created_at=now()
+        // 3. Insérer dans la table 'merchant_settings': user_id, company_name, phone, business_type, city, country, plan='trial', created_at=now()
         const { error: msFullErr } = await supabase
           .from("merchant_settings")
           .upsert(
@@ -199,6 +212,10 @@ function SignupCardContent() {
               company_name: cleanCompany,
               phone: cleanPhone,
               whatsapp_phone: cleanPhone,
+              city: cleanCity,
+              region: DEFAULT_MERCHANT_REGION,
+              country: cleanCountry,
+              address_city: `${cleanCity}, ${cleanCountry}`,
               business_type: businessType,
               plan: "trial",
               email: cleanEmail,
@@ -210,13 +227,13 @@ function SignupCardContent() {
           );
 
         if (msFullErr) {
-          // Fallback si certaines colonnes (phone, plan, created_at) n'ont pas encore été ajoutées via SQL
           await supabase.from("merchant_settings").upsert(
             {
               user_id: activeUser.id,
               org_id: orgId,
               company_name: cleanCompany,
               whatsapp_phone: cleanPhone,
+              address_city: `${cleanCity}, ${cleanCountry}`,
               email: cleanEmail,
               primary_color: "green",
               updated_at: nowIso,
@@ -320,9 +337,43 @@ function SignupCardContent() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="contact@entreprise.com"
+                placeholder={OFFICIAL_EMAIL}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
+            </div>
+          </div>
+
+          {/* Ville + Pays (saisie manuelle, aucune géolocalisation automatique) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Ville (saisie manuelle) *
+              </label>
+              <input
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ex: Ngaoundéré"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pays *
+              </label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white font-semibold text-[#0B1F3A]"
+              >
+                {COUNTRY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -369,11 +420,10 @@ function SignupCardContent() {
                 return (
                   <label
                     key={opt.id}
-                    className={`cursor-pointer flex items-center gap-2.5 p-3 rounded-xl border-2 text-xs font-bold transition-all ${
-                      checked
+                    className={`cursor-pointer flex items-center gap-2.5 p-3 rounded-xl border-2 text-xs font-bold transition-all ${checked
                         ? "border-emerald-600 bg-emerald-50 text-[#0B1F3A] shadow-xs"
                         : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -416,14 +466,22 @@ function SignupCardContent() {
               Déjà un compte ? Se connecter
             </Link>
           </div>
-          <div>
+          <div className="text-xs font-bold text-slate-600">
+            Support:{" "}
+            <a
+              href={`mailto:${OFFICIAL_EMAIL}`}
+              className="text-[#0B1F3A] underline"
+            >
+              {OFFICIAL_EMAIL}
+            </a>{" "}
+            ·{" "}
             <a
               href="https://wa.me/23566268503"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-bold text-[#128C7E] hover:underline"
+              className="text-[#128C7E] underline"
             >
-              💬 Assistance WhatsApp : +235 66 26 85 03
+              WhatsApp: +235 66 26 85 03
             </a>
           </div>
         </div>

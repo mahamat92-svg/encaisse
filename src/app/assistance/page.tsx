@@ -3,7 +3,13 @@
 import React, { useState } from "react";
 import { useAppState } from "@/components/AppContext";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
-import { buildWhatsAppLink } from "@/lib/format";
+import {
+  buildWhatsAppLink,
+  DEFAULT_MERCHANT_LOCATION_LABEL,
+  OFFICIAL_EMAIL,
+  OFFICIAL_WHATSAPP_DIGITS,
+  OFFICIAL_WHATSAPP_DISPLAY,
+} from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
 export default function HelpCenterPage() {
@@ -13,8 +19,7 @@ export default function HelpCenterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const supportPhone =
-    process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "237600000000";
+  const supportPhone = OFFICIAL_WHATSAPP_DIGITS;
 
   const faqs = [
     {
@@ -75,7 +80,11 @@ export default function HelpCenterPage() {
               Besoin d&apos;aide ? Notre équipe vous répond sur WhatsApp
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Support technique, accompagnement des écoles pilotes et activation des abonnements.
+              📍 {DEFAULT_MERCHANT_LOCATION_LABEL} | 📧 Email:{" "}
+              <a href={`mailto:${OFFICIAL_EMAIL}`} className="underline text-white">
+                {OFFICIAL_EMAIL}
+              </a>{" "}
+              | 📱 WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
             </p>
           </div>
           <a

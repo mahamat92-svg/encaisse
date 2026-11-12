@@ -5,6 +5,11 @@ import { useAppState } from "@/components/AppContext";
 import {
   BRAND_COLOR_PALETTE,
   BUSINESS_SERVICES,
+  COUNTRY_OPTIONS,
+  DEFAULT_MERCHANT_CITY,
+  DEFAULT_MERCHANT_COUNTRY,
+  DEFAULT_MERCHANT_REGION,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
   type BrandColorChoice,
   type BusinessType,
@@ -14,7 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function MerchantSettingsFormPage() {
   const { org, refreshOrgData } = useAppState();
 
-  // Champs demandés pour 'merchant_settings'
+  // Champs demandés pour 'merchant_settings' (localisation manuelle uniquement)
   const [companyName, setCompanyName] = useState(org.name);
   const [businessType, setBusinessType] = useState<BusinessType>(
     org.businessType || "boutique"
@@ -23,8 +28,13 @@ export default function MerchantSettingsFormPage() {
   const [whatsappPhone, setWhatsappPhone] = useState(
     org.phone || OFFICIAL_WHATSAPP_DIGITS
   );
-  const [addressCity, setAddressCity] = useState(org.city);
-  const [email, setEmail] = useState(org.email);
+  const [city, setCity] = useState(org.city || DEFAULT_MERCHANT_CITY);
+  const [region, setRegion] = useState(org.region || DEFAULT_MERCHANT_REGION);
+  const [country, setCountry] = useState(
+    org.country || DEFAULT_MERCHANT_COUNTRY
+  );
+  const [address, setAddress] = useState(org.address || "");
+  const [email, setEmail] = useState(org.email || OFFICIAL_EMAIL);
   const [rccmNiu, setRccmNiu] = useState(org.rccmNiu);
   const [slogan, setSlogan] = useState(org.slogan);
   const [primaryColor, setPrimaryColor] = useState<BrandColorChoice>(
@@ -50,8 +60,11 @@ export default function MerchantSettingsFormPage() {
     setBusinessType(org.businessType || "boutique");
     setLogoUrl(org.logoUrl);
     setWhatsappPhone(org.phone || OFFICIAL_WHATSAPP_DIGITS);
-    setAddressCity(org.city);
-    setEmail(org.email);
+    setCity(org.city || DEFAULT_MERCHANT_CITY);
+    setRegion(org.region || DEFAULT_MERCHANT_REGION);
+    setCountry(org.country || DEFAULT_MERCHANT_COUNTRY);
+    setAddress(org.address || "");
+    setEmail(org.email || OFFICIAL_EMAIL);
     setRccmNiu(org.rccmNiu);
     setSlogan(org.slogan);
     setPrimaryColor(org.primaryColor || "green");
@@ -147,8 +160,21 @@ export default function MerchantSettingsFormPage() {
       }
 
       const cleanPhone = whatsappPhone.trim() || OFFICIAL_WHATSAPP_DIGITS;
+      const cleanEmail = email.trim() || OFFICIAL_EMAIL;
+      const cleanCity = city.trim() || DEFAULT_MERCHANT_CITY;
+      const cleanRegion = region.trim() || DEFAULT_MERCHANT_REGION;
+      const cleanCountry = country.trim() || DEFAULT_MERCHANT_COUNTRY;
+      const cleanAddress = address.trim();
+      const formattedLocation = [
+        cleanAddress,
+        cleanCity,
+        cleanRegion,
+        cleanCountry,
+      ]
+        .filter(Boolean)
+        .join(", ");
 
-      // 1. Enregistrer dans la table Supabase 'merchant_settings' (une ligne par admin)
+      // 1. Enregistrer dans la table Supabase 'merchant_settings' (city, region, country, address)
       const { error: msErr } = await supabase.from("merchant_settings").upsert(
         {
           user_id: user.id,
@@ -157,8 +183,13 @@ export default function MerchantSettingsFormPage() {
           business_type: businessType,
           logo_url: logoUrl || null,
           whatsapp_phone: cleanPhone,
-          address_city: addressCity.trim() || null,
-          email: email.trim() || null,
+          phone: cleanPhone,
+          city: cleanCity,
+          region: cleanRegion,
+          country: cleanCountry,
+          address: cleanAddress || null,
+          address_city: formattedLocation,
+          email: cleanEmail,
           rccm_niu: rccmNiu.trim() || null,
           slogan: slogan.trim() || null,
           primary_color: primaryColor,
@@ -167,7 +198,7 @@ export default function MerchantSettingsFormPage() {
         { onConflict: "user_id" }
       );
 
-      // Si la colonne business_type n'existe pas encore dans merchant_settings, sauvegarder sans elle
+      // Fallback si les nouvelles colonnes (city, region, country, address) ne sont pas encore créées en base
       if (msErr) {
         await supabase.from("merchant_settings").upsert(
           {
@@ -176,8 +207,8 @@ export default function MerchantSettingsFormPage() {
             company_name: companyName.trim(),
             logo_url: logoUrl || null,
             whatsapp_phone: cleanPhone,
-            address_city: addressCity.trim() || null,
-            email: email.trim() || null,
+            address_city: formattedLocation,
+            email: cleanEmail,
             rccm_niu: rccmNiu.trim() || null,
             slogan: slogan.trim() || null,
             primary_color: primaryColor,
@@ -192,12 +223,16 @@ export default function MerchantSettingsFormPage() {
         fapshiApiUser: fapshiApiUser.trim(),
         fapshiApiKey: fapshiApiKey.trim(),
         fapshiEnv,
-        email: email.trim(),
+        email: cleanEmail,
         slogan: slogan.trim(),
         primaryColor,
         rccmNiu: rccmNiu.trim(),
         logoUrl: logoUrl || "",
         businessType,
+        city: cleanCity,
+        region: cleanRegion,
+        country: cleanCountry,
+        address: cleanAddress,
       });
 
       const { error: orgErr } = await supabase
@@ -206,7 +241,7 @@ export default function MerchantSettingsFormPage() {
           name: companyName.trim(),
           mode: businessType === "ecole" ? "etablissement" : "commerce",
           logo_url: logoUrl || null,
-          city: addressCity.trim() || null,
+          city: cleanCity,
           phone: cleanPhone,
           rccm: rccmNiu.trim() || null,
           mtn_momo_number: mtnMomo.trim() || null,
@@ -401,26 +436,70 @@ export default function MerchantSettingsFormPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Adresse / Ville
+                Email professionnel (pré-rempli : {OFFICIAL_EMAIL})
               </label>
               <input
-                type="text"
-                value={addressCity}
-                onChange={(e) => setAddressCity(e.target.value)}
-                placeholder="Ex: Ngaoundéré, Adamawa"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={OFFICIAL_EMAIL}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email professionnel
+                Ville (saisie manuelle) *
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="contact@entreprise.com"
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ngaoundéré"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Région / Quartier (saisie manuelle)
+              </label>
+              <input
+                type="text"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                placeholder="Adamawa"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pays *
+              </label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white font-semibold text-[#0B1F3A]"
+              >
+                {COUNTRY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Adresse complète
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Ex: Avenue Commerciale, Ngaoundéré"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>

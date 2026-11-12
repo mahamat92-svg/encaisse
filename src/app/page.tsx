@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
 import {
   BUSINESS_SERVICES,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DISPLAY,
   OFFICIAL_WHATSAPP_URL,
 } from "@/lib/format";
@@ -70,6 +71,26 @@ export default function HomePage() {
               Une seule plateforme,{" "}
               <span className="text-emerald-400">tous vos métiers.</span>
             </h1>
+
+            {/* 5. Texte fixe de localisation manuelle et coordonnées officielles sur la page d'accueil */}
+            <div className="p-3 rounded-xl bg-white/10 border border-white/20 text-xs sm:text-sm font-bold text-white leading-relaxed">
+              📍 Ngaoundéré, Adamawa - Cameroun | 📧{" "}
+              <a
+                href={`mailto:${OFFICIAL_EMAIL}`}
+                className="text-emerald-300 hover:underline"
+              >
+                {OFFICIAL_EMAIL}
+              </a>{" "}
+              | 📱 WhatsApp:{" "}
+              <a
+                href={OFFICIAL_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#25D366] hover:underline"
+              >
+                {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
+            </div>
 
             <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
               Encaisse, École, Clinique, Immobilier, Artisan, ONG — Gérez vos produits, factures et encaissements Mobile Money via Fapshi et WhatsApp en toute sécurité.

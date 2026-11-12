@@ -8,6 +8,10 @@ import React, {
   useState,
 } from "react";
 import {
+  DEFAULT_MERCHANT_CITY,
+  DEFAULT_MERCHANT_COUNTRY,
+  DEFAULT_MERCHANT_REGION,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
   type BrandColorChoice,
   type BusinessType,
@@ -37,6 +41,9 @@ export interface ActiveOrgData {
   mode: OrgMode;
   businessType: BusinessType;
   city: string;
+  region: string;
+  country: string;
+  address: string;
   phone: string;
   email: string;
   logoUrl: string;
@@ -136,6 +143,10 @@ interface FooterMeta {
   rccmNiu: string;
   logoUrl: string;
   businessType: BusinessType;
+  city: string;
+  region: string;
+  country: string;
+  address: string;
 }
 
 function isValidBusinessType(v: unknown): v is BusinessType {
@@ -152,12 +163,16 @@ function isValidBusinessType(v: unknown): v is BusinessType {
 function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
   const fallback: FooterMeta = {
     fapshi: { apiUser: "", apiKey: "", environment: "live" },
-    email: "",
+    email: OFFICIAL_EMAIL,
     slogan: "",
     primaryColor: "green",
     rccmNiu: "",
     logoUrl: "",
     businessType: "boutique",
+    city: DEFAULT_MERCHANT_CITY,
+    region: DEFAULT_MERCHANT_REGION,
+    country: DEFAULT_MERCHANT_COUNTRY,
+    address: "",
   };
   if (!footerNote) return fallback;
   try {
@@ -176,7 +191,10 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
             typeof parsed.fapshiApiKey === "string" ? parsed.fapshiApiKey : "",
           environment: parsed.fapshiEnv === "sandbox" ? "sandbox" : "live",
         },
-        email: typeof parsed.email === "string" ? parsed.email : "",
+        email:
+          typeof parsed.email === "string" && parsed.email.trim()
+            ? parsed.email.trim()
+            : OFFICIAL_EMAIL,
         slogan: typeof parsed.slogan === "string" ? parsed.slogan : "",
         primaryColor: validColor,
         rccmNiu: typeof parsed.rccmNiu === "string" ? parsed.rccmNiu : "",
@@ -184,6 +202,19 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
         businessType: isValidBusinessType(parsed.businessType)
           ? parsed.businessType
           : "boutique",
+        city:
+          typeof parsed.city === "string" && parsed.city.trim()
+            ? parsed.city.trim()
+            : DEFAULT_MERCHANT_CITY,
+        region:
+          typeof parsed.region === "string" && parsed.region.trim()
+            ? parsed.region.trim()
+            : DEFAULT_MERCHANT_REGION,
+        country:
+          typeof parsed.country === "string" && parsed.country.trim()
+            ? parsed.country.trim()
+            : DEFAULT_MERCHANT_COUNTRY,
+        address: typeof parsed.address === "string" ? parsed.address.trim() : "",
       };
     }
   } catch {
@@ -553,7 +584,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         company_name?: string;
         logo_url?: string;
         whatsapp_phone?: string;
+        phone?: string;
         address_city?: string;
+        city?: string;
+        region?: string;
+        country?: string;
+        address?: string;
         email?: string;
         rccm_niu?: string;
         slogan?: string;
@@ -583,17 +619,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ? "ecole"
               : "boutique";
 
+      const resolvedCity =
+        ms?.city?.trim() ||
+        ms?.address_city?.trim() ||
+        dbOrg.city ||
+        footerMeta.city ||
+        DEFAULT_MERCHANT_CITY;
+      const resolvedRegion =
+        ms?.region?.trim() || footerMeta.region || DEFAULT_MERCHANT_REGION;
+      const resolvedCountry =
+        ms?.country?.trim() || footerMeta.country || DEFAULT_MERCHANT_COUNTRY;
+      const resolvedAddress =
+        ms?.address?.trim() || footerMeta.address || "";
+
       setLiveOrg({
         id: dbOrg.id,
         name: ms?.company_name?.trim() || dbOrg.name,
         mode: finalBusinessType === "ecole" ? "etablissement" : activeMode,
         businessType: finalBusinessType,
-        city: ms?.address_city?.trim() || dbOrg.city || "",
+        city: resolvedCity,
+        region: resolvedRegion,
+        country: resolvedCountry,
+        address: resolvedAddress,
         phone:
           ms?.whatsapp_phone?.trim() ||
+          ms?.phone?.trim() ||
           dbOrg.phone ||
           OFFICIAL_WHATSAPP_DIGITS,
-        email: ms?.email?.trim() || footerMeta.email || user.email || "",
+        email:
+          ms?.email?.trim() ||
+          footerMeta.email ||
+          OFFICIAL_EMAIL,
         logoUrl: ms?.logo_url || dbOrg.logo_url || footerMeta.logoUrl || "",
         slogan: ms?.slogan?.trim() || footerMeta.slogan || "",
         primaryColor: finalColor,
@@ -650,12 +706,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLiveOrg(null);
   }, [supabaseReady]);
 
-  // Organisation vide par défaut (aucune donnée fictive)
+  // Organisation vide par défaut (aucune donnée fictive, localisation manuelle par défaut)
   const emptyOrg: ActiveOrgData = {
     ...DEMO_ORGS[mode],
     businessType: mode === "etablissement" ? "ecole" : "boutique",
+    city: DEFAULT_MERCHANT_CITY,
+    region: DEFAULT_MERCHANT_REGION,
+    country: DEFAULT_MERCHANT_COUNTRY,
+    address: "",
     phone: OFFICIAL_WHATSAPP_DIGITS,
-    email: "",
+    email: OFFICIAL_EMAIL,
     logoUrl: "",
     slogan: "",
     primaryColor: "green",

@@ -118,6 +118,15 @@ export default function AdminLoginPage() {
                 Pas encore de compte ? Créer mon compte gratuit
               </Link>
             </div>
+            <div className="text-xs font-bold text-slate-600">
+              Support:{" "}
+              <a
+                href="mailto:innovtechmhainfinity92@mail.com"
+                className="text-[#0B1F3A] underline"
+              >
+                innovtechmhainfinity92@mail.com
+              </a>
+            </div>
             <div>
               <Link
                 href="/"

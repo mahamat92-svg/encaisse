@@ -34,6 +34,32 @@ export const OFFICIAL_WHATSAPP_URL = "https://wa.me/23566268503";
 export const OFFICIAL_WHATSAPP_ACCOUNT_URL =
   "https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20un%20compte";
 
+export const OFFICIAL_EMAIL = "innovtechmhainfinity92@mail.com";
+export const DEFAULT_MERCHANT_CITY = "Ngaoundéré";
+export const DEFAULT_MERCHANT_REGION = "Adamawa";
+export const DEFAULT_MERCHANT_COUNTRY = "Cameroun";
+export const DEFAULT_MERCHANT_LOCATION_LABEL =
+  "Ngaoundéré, Adamawa - Cameroun";
+
+export const COUNTRY_OPTIONS = [
+  "Cameroun",
+  "Tchad",
+  "Niger",
+  "Nigeria",
+  "Centrafrique",
+  "Gabon",
+  "Congo",
+  "RD Congo",
+  "Sénégal",
+  "Côte d'Ivoire",
+  "Mali",
+  "Burkina Faso",
+  "Bénin",
+  "Togo",
+  "France",
+  "Autre",
+] as const;
+
 export interface BusinessServiceDefinition {
   id: BusinessType;
   icon: string;
@@ -273,8 +299,8 @@ export function buildWhatsAppLink(
 }
 
 /**
- * Message WhatsApp officiel pour les factures :
- * "Bonjour [Client], voici votre facture [Numéro] de [Montant] XAF de [Nom Entreprise]. Payez ici: [Lien]. Merci - [Nom Entreprise] - WhatsApp: +23566268503"
+ * Message WhatsApp officiel pour les factures (avec email et WhatsApp officiels) :
+ * "Bonjour [Client], voici votre facture [Numéro] de [Montant] XAF de [Nom Entreprise]. Payez ici: [Lien]. Merci - [Nom Entreprise] - Email: innovtechmhainfinity92@mail.com - WhatsApp: +23566268503"
  */
 export function buildInvoiceWhatsAppMessage(params: {
   clientName: string;
@@ -285,30 +311,33 @@ export function buildInvoiceWhatsAppMessage(params: {
   merchantName?: string;
   merchantCity?: string;
   merchantPhone?: string;
+  merchantEmail?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
   const merchant = params.merchantName?.trim() || "InnovTech MHA Infinity";
+  const email = params.merchantEmail?.trim() || OFFICIAL_EMAIL;
   const url = params.paymentUrl.trim();
-  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant} - WhatsApp: +23566268503`;
+  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant} - Email: ${email} - WhatsApp: +23566268503`;
 }
 
 /**
  * Message officiel de confirmation de paiement / reçu sur WhatsApp :
- * "Merci [Nom], nous avons bien reçu votre paiement de [Montant] XAF. Voici votre reçu : [Lien reçu]"
  */
 export function buildReceiptWhatsAppMessage(params: {
   clientName: string;
   amount: number;
   receiptUrl: string;
   merchantPhone?: string;
+  merchantEmail?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const amt = formatAmountNumber(params.amount);
   const url = params.receiptUrl.trim();
+  const email = params.merchantEmail?.trim() || OFFICIAL_EMAIL;
   const waPhone = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
-  return `Merci ${client}, nous avons bien reçu votre paiement de ${amt} XAF. Voici votre reçu : ${url} (WhatsApp: ${waPhone})`;
+  return `Merci ${client}, nous avons bien reçu votre paiement de ${amt} XAF. Voici votre reçu : ${url} (Email: ${email} | WhatsApp: ${waPhone})`;
 }
 
 /** Calcul d'une ligne de facture selon les règles métier (TVA 19,25 % = 1925 bp) */

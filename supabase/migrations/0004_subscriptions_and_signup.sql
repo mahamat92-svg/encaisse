@@ -1,10 +1,14 @@
 -- =====================================================================
--- MIGRATION 0004 : COLONNES merchant_settings (phone, business_type, plan, created_at)
+-- MIGRATION 0004 : COLONNES merchant_settings (phone, city, region, country, address, business_type, plan, created_at)
 --                  & TABLE subscriptions (7 jours d'essai gratuit)
 -- =====================================================================
 
 alter table public.merchant_settings
   add column if not exists phone text default '23566268503',
+  add column if not exists city text default 'Ngaoundéré',
+  add column if not exists region text default 'Adamawa',
+  add column if not exists country text default 'Cameroun',
+  add column if not exists address text,
   add column if not exists business_type text not null default 'boutique',
   add column if not exists plan text not null default 'trial',
   add column if not exists created_at timestamptz not null default now();

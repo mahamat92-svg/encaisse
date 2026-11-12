@@ -3,9 +3,11 @@
 import React from "react";
 import {
   BRAND_COLOR_PALETTE,
+  DEFAULT_MERCHANT_LOCATION_LABEL,
   formatCFA,
   formatDate,
   normalizeWhatsAppPhone,
+  OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
   type BrandColorChoice,
 } from "@/lib/format";
@@ -101,9 +103,9 @@ export function triggerStandaloneInvoicePdfPrint(
           ${logoHtml}
           <h2 style="margin:12px 0 4px;font-size:22px;">${info.merchantName}</h2>
           <div style="font-size:12px;color:#475569;line-height:1.5;">
-            ${info.merchantCity ? `<div>📍 ${info.merchantCity}</div>` : ""}
-            ${info.merchantPhone ? `<div>📞 ${info.merchantPhone}</div>` : ""}
-            ${info.merchantEmail ? `<div>✉️ ${info.merchantEmail}</div>` : ""}
+            <div>📍 ${info.merchantCity || DEFAULT_MERCHANT_LOCATION_LABEL}</div>
+            <div>📞 ${info.merchantPhone || OFFICIAL_WHATSAPP_DIGITS}</div>
+            <div>✉️ ${info.merchantEmail || OFFICIAL_EMAIL}</div>
             ${info.merchantRccmNiu ? `<div>🏛️ ${info.merchantRccmNiu}</div>` : ""}
           </div>
         </div>
@@ -146,7 +148,7 @@ export function triggerStandaloneInvoicePdfPrint(
       </div>
 
       <div class="footer">
-        Merci pour votre confiance — <span style="color:${palette.hex};">${info.merchantName}</span> — WhatsApp: +23566268503
+        Merci pour votre confiance — <span style="color:${palette.hex};">${info.merchantName}</span> — Questions ? ${info.merchantEmail || OFFICIAL_EMAIL} - WhatsApp: +235 66 26 85 03
       </div>
     </div>
   </div>
