@@ -29,8 +29,8 @@ export default function SubscriptionPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [effectivePlanId, setEffectivePlanId] = useState<string>("pro");
-  const [docsUsed, setDocsUsed] = useState<number>(org.documents.length);
-  const [aiUsed, setAiUsed] = useState<number>(3);
+  const [docsUsed, setDocsUsed] = useState<number>(0);
+  const [aiUsed, setAiUsed] = useState<number>(0);
   const [history, setHistory] = useState<SubPaymentRow[]>([]);
 
   const mtnAdmin =

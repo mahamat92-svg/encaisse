@@ -7,12 +7,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import {
-  computeLineTotals,
-  type Locale,
-  type OrgMode,
-  type PaymentMethod,
-} from "@/lib/format";
+import type { Locale, OrgMode, PaymentMethod } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   DEMO_ORGS,
@@ -22,6 +17,12 @@ import {
   type DemoPayment,
   type DemoReminder,
 } from "@/lib/demo-data";
+
+export interface FapshiConfig {
+  apiUser: string;
+  apiKey: string;
+  environment: "sandbox" | "live";
+}
 
 export interface ActiveOrgData {
   id: string;
@@ -35,6 +36,7 @@ export interface ActiveOrgData {
   vatRateBp: number;
   mtnMomoNumber: string;
   orangeMoneyNumber: string;
+  fapshi: FapshiConfig;
   planId: string;
   trialDaysLeft: number;
   clients: DemoClient[];
@@ -61,7 +63,9 @@ export interface NewCatalogInput {
 
 export interface NewDocumentInput {
   docType: "invoice" | "quote";
-  clientId: string;
+  clientId?: string;
+  newClientName?: string;
+  newClientPhone?: string;
   dueDate: string;
   label: string;
   quantity: number;
@@ -87,55 +91,44 @@ interface AppState {
   loadingData: boolean;
   refreshOrgData: () => Promise<void>;
   signOutUser: () => Promise<void>;
-  addClientRecord: (input: NewClientInput) => Promise<{ ok: boolean; error?: string }>;
-  addCatalogRecord: (input: NewCatalogInput) => Promise<{ ok: boolean; error?: string }>;
+  addClientRecord: (
+    input: NewClientInput
+  ) => Promise<{ ok: boolean; error?: string; id?: string }>;
+  deleteClientRecord: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  addCatalogRecord: (
+    input: NewCatalogInput
+  ) => Promise<{ ok: boolean; error?: string }>;
+  deleteCatalogRecord: (id: string) => Promise<{ ok: boolean; error?: string }>;
   createDocumentRecord: (
     input: NewDocumentInput
-  ) => Promise<{ ok: boolean; error?: string; number?: string; publicToken?: string }>;
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    number?: string;
+    publicToken?: string;
+  }>;
   recordPaymentRecord: (
     input: NewPaymentInput
   ) => Promise<{ ok: boolean; error?: string; receiptNumber?: string }>;
 }
 
-const STORAGE_KEY = "innovtech_encaisse_custom_v1";
-
-interface LocalCustomStore {
-  commerce: {
-    clients: DemoClient[];
-    catalog: DemoCatalogItem[];
-    documents: DemoDocument[];
-    payments: DemoPayment[];
-  };
-  etablissement: {
-    clients: DemoClient[];
-    catalog: DemoCatalogItem[];
-    documents: DemoDocument[];
-    payments: DemoPayment[];
-  };
-}
-
-function getInitialCustomStore(): LocalCustomStore {
-  if (typeof window === "undefined") {
-    return {
-      commerce: { clients: [], catalog: [], documents: [], payments: [] },
-      etablissement: { clients: [], catalog: [], documents: [], payments: [] },
-    };
+function parseFapshiFromFooter(footerNote: string | null | undefined): FapshiConfig {
+  if (!footerNote) {
+    return { apiUser: "", apiKey: "", environment: "live" };
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as LocalCustomStore;
-      if (parsed?.commerce && parsed?.etablissement) {
-        return parsed;
-      }
+    if (footerNote.startsWith("{")) {
+      const parsed = JSON.parse(footerNote);
+      return {
+        apiUser: typeof parsed.fapshiApiUser === "string" ? parsed.fapshiApiUser : "",
+        apiKey: typeof parsed.fapshiApiKey === "string" ? parsed.fapshiApiKey : "",
+        environment: parsed.fapshiEnv === "sandbox" ? "sandbox" : "live",
+      };
     }
   } catch {
-    // Ignore storage parse error
+    // Ignore parse error
   }
-  return {
-    commerce: { clients: [], catalog: [], documents: [], payments: [] },
-    etablissement: { clients: [], catalog: [], documents: [], payments: [] },
-  };
+  return { apiUser: "", apiKey: "", environment: "live" };
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -145,38 +138,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<OrgMode>("commerce");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [liveOrg, setLiveOrg] = useState<ActiveOrgData | null>(null);
-  const [customStore, setCustomStore] = useState<LocalCustomStore>({
-    commerce: { clients: [], catalog: [], documents: [], payments: [] },
-    etablissement: { clients: [], catalog: [], documents: [], payments: [] },
-  });
-  const [loadingData, setLoadingData] = useState<boolean>(false);
+  const [loadingData, setLoadingData] = useState<boolean>(true);
   const supabaseReady = isSupabaseConfigured();
-
-  // Charger les créations locales persistées au démarrage
-  useEffect(() => {
-    setCustomStore(getInitialCustomStore());
-  }, []);
-
-  const updateCustomStore = useCallback(
-    (updater: (prev: LocalCustomStore) => LocalCustomStore) => {
-      setCustomStore((prev) => {
-        const next = updater(prev);
-        if (typeof window !== "undefined") {
-          try {
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-          } catch {
-            // Ignore quota errors
-          }
-        }
-        return next;
-      });
-    },
-    []
-  );
 
   const refreshOrgData = useCallback(async () => {
     if (!supabaseReady) {
       setLiveOrg(null);
+      setLoadingData(false);
       return;
     }
 
@@ -196,7 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setUserEmail(user.email ?? null);
 
-      // 1. Chercher l'organisation dont cet utilisateur est membre
+      // 1. Chercher l'organisation réelle de l'utilisateur connecté
       const { data: myMemberships } = await supabase
         .from("memberships")
         .select("org_id, role")
@@ -206,33 +174,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       let targetOrgId: string | null = myMemberships?.[0]?.org_id ?? null;
 
-      // 2. Si l'utilisateur n'a pas encore d'organisation, la créer automatiquement
+      // 2. Si l'utilisateur n'a pas encore d'organisation, créer son organisation réelle vide
       if (!targetOrgId) {
         const meta = user.user_metadata || {};
         const defaultName =
           typeof meta.org_name === "string" && meta.org_name.trim()
             ? meta.org_name.trim()
             : typeof meta.full_name === "string" && meta.full_name.trim()
-              ? `Entreprise ${meta.full_name.trim()}`
-              : `Entreprise ${(user.email || "InnovTech").split("@")[0]}`;
+              ? meta.full_name.trim()
+              : (user.email || "Mon Entreprise").split("@")[0];
         const defaultMode: OrgMode =
           meta.org_mode === "etablissement" ? "etablissement" : "commerce";
         const defaultCity =
           typeof meta.city === "string" && meta.city.trim()
             ? meta.city.trim()
-            : "Douala";
+            : "";
         const defaultPhone =
           typeof meta.phone === "string" && meta.phone.trim()
             ? meta.phone.trim()
-            : "+237 ";
+            : "";
 
         const { data: createdOrgId, error: createErr } = await supabase.rpc(
           "create_organization",
           {
             p_name: defaultName,
             p_mode: defaultMode,
-            p_city: defaultCity,
-            p_phone: defaultPhone,
+            p_city: defaultCity || null,
+            p_phone: defaultPhone || null,
           }
         );
 
@@ -241,7 +209,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fallback si Super-Admin a déjà une organisation visible dans `organizations`
       if (!targetOrgId) {
         const { data: anyOrgs } = await supabase
           .from("organizations")
@@ -275,57 +242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dbOrg.mode === "etablissement" ? "etablissement" : "commerce";
       setMode(activeMode);
 
-      // 3. Synchroniser automatiquement en base Supabase tout client ou produit créé localement avant la connexion
-      const localPending = getInitialCustomStore()[activeMode];
-      if (localPending.clients.length > 0) {
-        const { data: existingClients } = await supabase
-          .from("clients")
-          .select("name")
-          .eq("org_id", dbOrg.id);
-        const existingNames = new Set(
-          (existingClients ?? []).map((c) => c.name.toLowerCase())
-        );
-        for (const locCli of localPending.clients) {
-          if (!existingNames.has(locCli.name.toLowerCase())) {
-            await supabase.from("clients").insert({
-              org_id: dbOrg.id,
-              kind: locCli.kind,
-              name: locCli.name,
-              phone: locCli.phone,
-              city: locCli.city,
-              locale: locCli.locale,
-              class_name: locCli.className ?? null,
-              school_year: locCli.schoolYear ?? null,
-              payer_name: locCli.payerName ?? null,
-              payer_phone: locCli.payerPhone ?? null,
-            });
-          }
-        }
-      }
-
-      if (localPending.catalog.length > 0) {
-        const { data: existingCat } = await supabase
-          .from("catalog_items")
-          .select("name")
-          .eq("org_id", dbOrg.id);
-        const existingCatNames = new Set(
-          (existingCat ?? []).map((c) => c.name.toLowerCase())
-        );
-        for (const locItem of localPending.catalog) {
-          if (!existingCatNames.has(locItem.name.toLowerCase())) {
-            await supabase.from("catalog_items").insert({
-              org_id: dbOrg.id,
-              name: locItem.name,
-              item_kind: locItem.itemKind,
-              unit: locItem.unit,
-              unit_price: locItem.unitPrice,
-              vat_applicable: locItem.vatApplicable,
-            });
-          }
-        }
-      }
-
-      // 4. Récupérer en parallèle clients, soldes, catalogue, documents, lignes, paiements et relances
+      // 3. Charger uniquement les vraies données depuis Supabase
       const [
         rawClientsRes,
         balancesRes,
@@ -388,7 +305,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           kind: c.kind === "student" ? "student" : "customer",
           name: c.name,
           phone: c.phone || c.payer_phone || "",
-          city: c.city || dbOrg.city || "Cameroun",
+          city: c.city || "",
           locale: c.locale === "en" ? "en" : "fr",
           creditLimit: c.credit_limit ? Number(c.credit_limit) : undefined,
           className: c.class_name || undefined,
@@ -459,10 +376,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           receiptNumber: p.receipt_number || "REC",
           clientId: p.client_id,
           clientName: cli?.name || "Client",
-          documentNumber: "Compte client",
+          documentNumber: "Facture",
           amount: Number(p.amount ?? 0),
           method: p.method,
-          reference: p.reference || "ESPÈCES",
+          reference: p.reference || "",
           paidAt: p.paid_at,
           status: p.status,
         };
@@ -493,17 +410,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         id: dbOrg.id,
         name: dbOrg.name,
         mode: activeMode,
-        city: dbOrg.city || "Cameroun",
+        city: dbOrg.city || "",
         phone: dbOrg.phone || "",
-        niu: dbOrg.niu || "Non renseigné",
-        rccm: dbOrg.rccm || "Non renseigné",
+        niu: dbOrg.niu || "",
+        rccm: dbOrg.rccm || "",
         vatRegistered: Boolean(dbOrg.vat_registered),
         vatRateBp: Number(dbOrg.vat_rate_bp ?? 1925),
-        mtnMomoNumber:
-          dbOrg.mtn_momo_number || "À configurer dans Entreprise",
-        orangeMoneyNumber:
-          dbOrg.orange_money_number || "À configurer dans Entreprise",
-        planId: "pro",
+        mtnMomoNumber: dbOrg.mtn_momo_number || "",
+        orangeMoneyNumber: dbOrg.orange_money_number || "",
+        fapshi: parseFapshiFromFooter(dbOrg.footer_note),
+        planId: "free",
         trialDaysLeft: daysLeft,
         clients: mappedClients,
         catalog: mappedCatalog,
@@ -513,7 +429,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isLiveDb: true,
       });
     } catch {
-      // Fallback
+      setLiveOrg(null);
     } finally {
       setLoadingData(false);
     }
@@ -542,233 +458,134 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLiveOrg(null);
   }, [supabaseReady]);
 
-  // Construire l'organisation active en combinant soit Supabase Live (+ cache local de secours), soit Démo + créations locales persistées
-  const baseDemo = DEMO_ORGS[mode];
-  const localForMode = customStore[mode];
-
-  const mergedDemoClients = [
-    ...localForMode.clients,
-    ...baseDemo.clients.filter(
-      (dc) =>
-        !localForMode.clients.some(
-          (lc) => lc.id === dc.id || lc.name.toLowerCase() === dc.name.toLowerCase()
-        )
-    ),
-  ];
-
-  const mergedDemoCatalog = [
-    ...localForMode.catalog,
-    ...baseDemo.catalog.filter(
-      (di) =>
-        !localForMode.catalog.some(
-          (li) => li.id === di.id || li.name.toLowerCase() === di.name.toLowerCase()
-        )
-    ),
-  ];
-
-  const mergedDemoDocs = [
-    ...localForMode.documents,
-    ...baseDemo.documents.filter(
-      (dd) => !localForMode.documents.some((ld) => ld.id === dd.id)
-    ),
-  ];
-
-  const mergedDemoPayments = [
-    ...localForMode.payments,
-    ...baseDemo.payments.filter(
-      (dp) => !localForMode.payments.some((lp) => lp.id === dp.id)
-    ),
-  ];
-
-  const fallbackDemo: ActiveOrgData = {
-    ...baseDemo,
-    clients: mergedDemoClients,
-    catalog: mergedDemoCatalog,
-    documents: mergedDemoDocs,
-    payments: mergedDemoPayments,
+  // Organisation vide par défaut (aucune donnée fictive)
+  const emptyOrg: ActiveOrgData = {
+    ...DEMO_ORGS[mode],
+    fapshi: { apiUser: "", apiKey: "", environment: "live" },
     isLiveDb: false,
   };
 
-  // Si liveOrg est actif, on fusionne aussi les éléments locaux qui n'auraient pas pu être écrits si un trigger SQL manquait de GRANT
-  const activeOrg: ActiveOrgData = liveOrg
-    ? {
-        ...liveOrg,
-        clients: [
-          ...liveOrg.clients,
-          ...localForMode.clients.filter(
-            (lc) =>
-              !liveOrg.clients.some(
-                (rc) =>
-                  rc.id === lc.id ||
-                  rc.name.toLowerCase() === lc.name.toLowerCase()
-              )
-          ),
-        ],
-        catalog: [
-          ...liveOrg.catalog,
-          ...localForMode.catalog.filter(
-            (li) =>
-              !liveOrg.catalog.some(
-                (ri) =>
-                  ri.id === li.id ||
-                  ri.name.toLowerCase() === li.name.toLowerCase()
-              )
-          ),
-        ],
-        documents: [
-          ...liveOrg.documents,
-          ...localForMode.documents.filter(
-            (ld) =>
-              !liveOrg.documents.some(
-                (rd) => rd.id === ld.id || rd.number === ld.number
-              )
-          ),
-        ],
-        payments: [
-          ...liveOrg.payments,
-          ...localForMode.payments.filter(
-            (lp) =>
-              !liveOrg.payments.some(
-                (rp) =>
-                  rp.id === lp.id || rp.receiptNumber === lp.receiptNumber
-              )
-          ),
-        ],
-      }
-    : fallbackDemo;
+  const activeOrg: ActiveOrgData = liveOrg ?? emptyOrg;
 
-  // Actions centralisées : écrivent dans Supabase ET persistent dans AppContext + localStorage
+  // CRUD Réel : Clients
   const addClientRecord = useCallback(
-    async (input: NewClientInput): Promise<{ ok: boolean; error?: string }> => {
+    async (
+      input: NewClientInput
+    ): Promise<{ ok: boolean; error?: string; id?: string }> => {
+      if (!liveOrg) {
+        return {
+          ok: false,
+          error: "Veuillez vous connecter pour enregistrer un client.",
+        };
+      }
       const trimmedName = input.name.trim();
       if (!trimmedName) {
         return { ok: false, error: "Le nom du client est obligatoire." };
       }
 
-      const newLocalClient: DemoClient = {
-        id: `cli-${Date.now()}`,
-        kind: mode === "etablissement" ? "student" : "customer",
-        name: trimmedName,
-        phone: input.phone.trim(),
-        city: input.city.trim() || "Douala",
-        locale: "fr",
-        className: mode === "etablissement" ? input.className?.trim() : undefined,
-        schoolYear: mode === "etablissement" ? "2026-2027" : undefined,
-        payerName: mode === "etablissement" ? input.payerName?.trim() : undefined,
-        payerPhone: mode === "etablissement" ? input.phone.trim() : undefined,
-        balance: 0,
-        overdueBalance: 0,
-      };
+      const supabase = createClient();
+      const { data, error: dbErr } = await supabase
+        .from("clients")
+        .insert({
+          org_id: liveOrg.id,
+          kind: mode === "etablissement" ? "student" : "customer",
+          name: trimmedName,
+          phone: input.phone.trim() || null,
+          city: input.city.trim() || null,
+          locale: "fr",
+          class_name:
+            mode === "etablissement" ? input.className?.trim() || null : null,
+          school_year: mode === "etablissement" ? "2026-2027" : null,
+          payer_name:
+            mode === "etablissement" ? input.payerName?.trim() || null : null,
+          payer_phone:
+            mode === "etablissement" ? input.phone.trim() || null : null,
+        })
+        .select("id")
+        .single();
 
-      // 1. Persister immédiatement dans le store global (ne disparaît jamais au changement de page ni au F5)
-      updateCustomStore((prev) => ({
-        ...prev,
-        [mode]: {
-          ...prev[mode],
-          clients: [
-            newLocalClient,
-            ...prev[mode].clients.filter(
-              (c) => c.name.toLowerCase() !== trimmedName.toLowerCase()
-            ),
-          ],
-        },
-      }));
-
-      // 2. Si connecté à Supabase, enregistrer aussi en base PostgreSQL
-      if (supabaseReady && liveOrg) {
-        try {
-          const supabase = createClient();
-          const { error: dbErr } = await supabase.from("clients").insert({
-            org_id: liveOrg.id,
-            kind: mode === "etablissement" ? "student" : "customer",
-            name: trimmedName,
-            phone: input.phone.trim(),
-            city: input.city.trim() || "Douala",
-            locale: "fr",
-            class_name:
-              mode === "etablissement" ? input.className?.trim() || null : null,
-            school_year: mode === "etablissement" ? "2026-2027" : null,
-            payer_name:
-              mode === "etablissement" ? input.payerName?.trim() || null : null,
-            payer_phone:
-              mode === "etablissement" ? input.phone.trim() || null : null,
-          });
-          if (!dbErr) {
-            await refreshOrgData();
-          }
-        } catch {
-          // Conservé dans le store persistant
-        }
+      if (dbErr) {
+        return { ok: false, error: dbErr.message };
       }
-
-      return { ok: true };
+      await refreshOrgData();
+      return { ok: true, id: data?.id };
     },
-    [liveOrg, mode, refreshOrgData, supabaseReady, updateCustomStore]
+    [liveOrg, mode, refreshOrgData]
   );
 
+  const deleteClientRecord = useCallback(
+    async (id: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!liveOrg) {
+        return { ok: false, error: "Non connecté." };
+      }
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("clients")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("org_id", liveOrg.id);
+      if (error) return { ok: false, error: error.message };
+      await refreshOrgData();
+      return { ok: true };
+    },
+    [liveOrg, refreshOrgData]
+  );
+
+  // CRUD Réel : Produits / Catalogue
   const addCatalogRecord = useCallback(
     async (input: NewCatalogInput): Promise<{ ok: boolean; error?: string }> => {
+      if (!liveOrg) {
+        return {
+          ok: false,
+          error: "Veuillez vous connecter pour ajouter un produit.",
+        };
+      }
       const trimmedName = input.name.trim();
       if (!trimmedName) {
-        return { ok: false, error: "La désignation est obligatoire." };
+        return { ok: false, error: "Le nom du produit est obligatoire." };
       }
 
       const itemKind = mode === "etablissement" ? "fee" : "product";
-      const vatApplicable = mode === "commerce" && activeOrg.vatRegistered;
+      const vatApplicable = mode === "commerce" && liveOrg.vatRegistered;
 
-      const newLocalItem: DemoCatalogItem = {
-        id: `cat-${Date.now()}`,
+      const supabase = createClient();
+      const { error: dbErr } = await supabase.from("catalog_items").insert({
+        org_id: liveOrg.id,
         name: trimmedName,
-        itemKind,
+        item_kind: itemKind,
         unit: input.unit.trim() || "unité",
-        unitPrice: Math.max(Math.round(input.unitPrice), 0),
-        vatApplicable,
-      };
+        unit_price: Math.max(Math.round(input.unitPrice), 0),
+        vat_applicable: vatApplicable,
+      });
 
-      updateCustomStore((prev) => ({
-        ...prev,
-        [mode]: {
-          ...prev[mode],
-          catalog: [
-            newLocalItem,
-            ...prev[mode].catalog.filter(
-              (i) => i.name.toLowerCase() !== trimmedName.toLowerCase()
-            ),
-          ],
-        },
-      }));
-
-      if (supabaseReady && liveOrg) {
-        try {
-          const supabase = createClient();
-          const { error: dbErr } = await supabase.from("catalog_items").insert({
-            org_id: liveOrg.id,
-            name: trimmedName,
-            item_kind: itemKind,
-            unit: newLocalItem.unit,
-            unit_price: newLocalItem.unitPrice,
-            vat_applicable: vatApplicable,
-          });
-          if (!dbErr) {
-            await refreshOrgData();
-          }
-        } catch {
-          // Conservé dans le store persistant
-        }
+      if (dbErr) {
+        return { ok: false, error: dbErr.message };
       }
-
+      await refreshOrgData();
       return { ok: true };
     },
-    [
-      activeOrg.vatRegistered,
-      liveOrg,
-      mode,
-      refreshOrgData,
-      supabaseReady,
-      updateCustomStore,
-    ]
+    [liveOrg, mode, refreshOrgData]
   );
 
+  const deleteCatalogRecord = useCallback(
+    async (id: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!liveOrg) {
+        return { ok: false, error: "Non connecté." };
+      }
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("catalog_items")
+        .delete()
+        .eq("id", id)
+        .eq("org_id", liveOrg.id);
+      if (error) return { ok: false, error: error.message };
+      await refreshOrgData();
+      return { ok: true };
+    },
+    [liveOrg, refreshOrgData]
+  );
+
+  // CRUD Réel : Commandes / Factures
   const createDocumentRecord = useCallback(
     async (
       input: NewDocumentInput
@@ -778,255 +595,150 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       number?: string;
       publicToken?: string;
     }> => {
-      const client =
-        activeOrg.clients.find((c) => c.id === input.clientId) ??
-        activeOrg.clients[0];
-      if (!client) {
+      if (!liveOrg) {
         return {
           ok: false,
-          error: "Veuillez d'abord créer ou sélectionner un client.",
+          error: "Veuillez vous connecter pour créer une facture.",
         };
       }
 
-      const vatBp = input.applyVat ? activeOrg.vatRateBp : 0;
-      const calc = computeLineTotals(
-        input.quantity,
-        input.unitPrice,
-        0,
-        vatBp
-      );
-      const prefix = input.docType === "quote" ? "DEV" : "FAC";
-      const seq = activeOrg.documents.length + 1;
-      const fallbackNum = `${prefix}-2026-${String(seq).padStart(4, "0")}`;
-      const fallbackToken = `tok-${fallbackNum.toLowerCase()}-${Date.now()}`;
+      const supabase = createClient();
+      let targetClientId = input.clientId || "";
 
-      // 1. Si connecté à Supabase et que le client existe en base (UUID)
-      if (
-        supabaseReady &&
-        liveOrg &&
-        !client.id.startsWith("cli-")
-      ) {
-        try {
-          const supabase = createClient();
-          const { data: draftDoc, error: docErr } = await supabase
-            .from("documents")
-            .insert({
-              org_id: liveOrg.id,
-              doc_type: input.docType,
-              client_id: client.id,
-              due_date: input.dueDate,
-              locale: client.locale,
-            })
-            .select("*")
-            .single();
+      // Si l'utilisateur saisit directement le nom d'un nouveau client lors de la création de facture
+      if (!targetClientId && input.newClientName?.trim()) {
+        const { data: createdCli, error: cliErr } = await supabase
+          .from("clients")
+          .insert({
+            org_id: liveOrg.id,
+            kind: mode === "etablissement" ? "student" : "customer",
+            name: input.newClientName.trim(),
+            phone: input.newClientPhone?.trim() || null,
+            city: liveOrg.city || null,
+            locale: "fr",
+          })
+          .select("id")
+          .single();
 
-          if (!docErr && draftDoc) {
-            const { error: lineErr } = await supabase
-              .from("document_lines")
-              .insert({
-                org_id: liveOrg.id,
-                document_id: draftDoc.id,
-                position: 1,
-                label: input.label.trim() || "Prestation / Fourniture",
-                quantity: input.quantity,
-                unit_price: input.unitPrice,
-                discount: 0,
-                vat_rate_bp: vatBp,
-              });
-
-            if (!lineErr) {
-              const { data: issued, error: issueErr } = await supabase.rpc(
-                "issue_document",
-                { p_doc: draftDoc.id }
-              );
-              if (!issueErr) {
-                await refreshOrgData();
-                return {
-                  ok: true,
-                  number: issued?.number || fallbackNum,
-                  publicToken: draftDoc.public_token,
-                };
-              }
-            }
-          }
-        } catch {
-          // Bascule sur persistance locale si une contrainte/trigger bloque
+        if (cliErr || !createdCli) {
+          return {
+            ok: false,
+            error: cliErr?.message || "Impossible de créer le client.",
+          };
         }
+        targetClientId = createdCli.id;
       }
 
-      // 2. Persistance immédiate dans AppContext + localStorage + mise à jour du solde client
-      const newDoc: DemoDocument = {
-        id: `doc-${Date.now()}`,
-        number: fallbackNum,
-        docType: input.docType,
-        status: "issued",
-        clientId: client.id,
-        clientName: client.name,
-        whatsappPhone: client.payerPhone || client.phone,
-        locale: client.locale,
-        issueDate: new Date().toISOString().slice(0, 10),
-        dueDate: input.dueDate,
-        subtotal: calc.subtotal,
-        vatTotal: calc.vat,
-        total: calc.total,
-        paidTotal: 0,
-        balance: input.docType === "invoice" ? calc.total : 0,
-        daysOverdue: 0,
-        publicToken: fallbackToken,
-        lines: [
-          {
-            label: input.label.trim() || "Prestation / Fourniture",
-            quantity: input.quantity,
-            unitPrice: input.unitPrice,
-            discount: 0,
-            vatRateBp: vatBp,
-            total: calc.total,
-          },
-        ],
-      };
-
-      updateCustomStore((prev) => {
-        const currentClients = prev[mode].clients;
-        const existingInCustom = currentClients.find((c) => c.id === client.id);
-        const updatedClient: DemoClient = {
-          ...(existingInCustom ?? client),
-          balance:
-            (existingInCustom ?? client).balance +
-            (input.docType === "invoice" ? calc.total : 0),
-        };
+      if (!targetClientId) {
         return {
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            clients: [
-              updatedClient,
-              ...currentClients.filter((c) => c.id !== client.id),
-            ],
-            documents: [newDoc, ...prev[mode].documents],
-          },
+          ok: false,
+          error:
+            "Veuillez sélectionner un client ou saisir le nom du client.",
         };
+      }
+
+      const vatBp = input.applyVat ? liveOrg.vatRateBp : 0;
+
+      const { data: draftDoc, error: docErr } = await supabase
+        .from("documents")
+        .insert({
+          org_id: liveOrg.id,
+          doc_type: input.docType,
+          client_id: targetClientId,
+          due_date: input.dueDate || null,
+          locale: "fr",
+        })
+        .select("*")
+        .single();
+
+      if (docErr || !draftDoc) {
+        return {
+          ok: false,
+          error: docErr?.message || "Erreur lors de la création de la facture.",
+        };
+      }
+
+      const { error: lineErr } = await supabase.from("document_lines").insert({
+        org_id: liveOrg.id,
+        document_id: draftDoc.id,
+        position: 1,
+        label: input.label.trim(),
+        quantity: input.quantity,
+        unit_price: input.unitPrice,
+        discount: 0,
+        vat_rate_bp: vatBp,
       });
 
-      return { ok: true, number: fallbackNum, publicToken: fallbackToken };
+      if (lineErr) {
+        return { ok: false, error: lineErr.message };
+      }
+
+      const { data: issued, error: issueErr } = await supabase.rpc(
+        "issue_document",
+        { p_doc: draftDoc.id }
+      );
+
+      if (issueErr) {
+        return { ok: false, error: issueErr.message };
+      }
+
+      await refreshOrgData();
+      return {
+        ok: true,
+        number: issued?.number,
+        publicToken: draftDoc.public_token,
+      };
     },
-    [
-      activeOrg.clients,
-      activeOrg.documents.length,
-      activeOrg.vatRateBp,
-      liveOrg,
-      mode,
-      refreshOrgData,
-      supabaseReady,
-      updateCustomStore,
-    ]
+    [liveOrg, mode, refreshOrgData]
   );
 
+  // CRUD Réel : Paiements
   const recordPaymentRecord = useCallback(
     async (
       input: NewPaymentInput
     ): Promise<{ ok: boolean; error?: string; receiptNumber?: string }> => {
-      const doc =
-        activeOrg.documents.find((d) => d.id === input.documentId) ??
-        activeOrg.documents[0];
-      if (!doc) {
-        return { ok: false, error: "Aucune facture sélectionnée." };
-      }
-
-      const refTrimmed = input.reference.trim();
-      if (
-        refTrimmed &&
-        activeOrg.payments.some(
-          (p) =>
-            p.status === "valid" &&
-            p.method === input.method &&
-            p.reference.toLowerCase() === refTrimmed.toLowerCase()
-        )
-      ) {
+      if (!liveOrg) {
         return {
           ok: false,
-          error: `ALERTE ANTI-FRAUDE (PAY-5) : La référence Mobile Money "${refTrimmed}" a déjà été utilisée !`,
+          error: "Veuillez vous connecter pour enregistrer un paiement.",
         };
       }
-
-      if (supabaseReady && liveOrg && !doc.id.startsWith("doc-")) {
-        try {
-          const supabase = createClient();
-          const { data: payRow, error: rpcErr } = await supabase.rpc(
-            "record_payment",
-            {
-              p_org: liveOrg.id,
-              p_client: doc.clientId,
-              p_amount: input.amount,
-              p_method: input.method,
-              p_reference: refTrimmed || null,
-              p_document: doc.id,
-            }
-          );
-          if (rpcErr) {
-            if (rpcErr.message.includes("DUPLICATE_REFERENCE")) {
-              return {
-                ok: false,
-                error: `ALERTE ANTI-FRAUDE (PAY-5) : La référence Mobile Money "${refTrimmed}" a déjà été utilisée !`,
-              };
-            }
-            return { ok: false, error: rpcErr.message };
-          }
-          await refreshOrgData();
-          return {
-            ok: true,
-            receiptNumber: payRow?.receipt_number || "REC-2026-0001",
-          };
-        } catch {
-          // Fallback store
-        }
+      const doc = liveOrg.documents.find((d) => d.id === input.documentId);
+      if (!doc) {
+        return { ok: false, error: "Veuillez sélectionner une facture." };
       }
 
-      const nextRec = `REC-2026-${String(
-        activeOrg.payments.length + 215
-      ).padStart(4, "0")}`;
-      const newPay: DemoPayment = {
-        id: `pay-${Date.now()}`,
-        receiptNumber: nextRec,
-        clientId: doc.clientId,
-        clientName: doc.clientName,
-        documentNumber: doc.number,
-        amount: input.amount,
-        method: input.method,
-        reference: refTrimmed || "ESPÈCES-CAISSE",
-        paidAt: new Date().toISOString().slice(0, 10),
-        status: "valid",
+      const supabase = createClient();
+      const refTrimmed = input.reference.trim();
+      const { data: payRow, error: rpcErr } = await supabase.rpc(
+        "record_payment",
+        {
+          p_org: liveOrg.id,
+          p_client: doc.clientId,
+          p_amount: input.amount,
+          p_method: input.method,
+          p_reference: refTrimmed || null,
+          p_document: doc.id,
+        }
+      );
+
+      if (rpcErr) {
+        if (rpcErr.message.includes("DUPLICATE_REFERENCE")) {
+          return {
+            ok: false,
+            error: `La référence "${refTrimmed}" a déjà été enregistrée.`,
+          };
+        }
+        return { ok: false, error: rpcErr.message };
+      }
+
+      await refreshOrgData();
+      return {
+        ok: true,
+        receiptNumber: payRow?.receipt_number,
       };
-
-      updateCustomStore((prev) => ({
-        ...prev,
-        [mode]: {
-          ...prev[mode],
-          payments: [newPay, ...prev[mode].payments],
-          documents: prev[mode].documents.map((d) =>
-            d.id === doc.id
-              ? {
-                  ...d,
-                  paidTotal: d.paidTotal + input.amount,
-                  balance: Math.max(d.balance - input.amount, 0),
-                  status:
-                    d.balance - input.amount <= 0 ? "paid" : "partially_paid",
-                }
-              : d
-          ),
-        },
-      }));
-
-      return { ok: true, receiptNumber: nextRec };
     },
-    [
-      activeOrg.documents,
-      activeOrg.payments,
-      liveOrg,
-      mode,
-      refreshOrgData,
-      supabaseReady,
-      updateCustomStore,
-    ]
+    [liveOrg, refreshOrgData]
   );
 
   return (
@@ -1043,7 +755,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshOrgData,
         signOutUser,
         addClientRecord,
+        deleteClientRecord,
         addCatalogRecord,
+        deleteCatalogRecord,
         createDocumentRecord,
         recordPaymentRecord,
       }}

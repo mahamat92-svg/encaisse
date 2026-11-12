@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 
 interface AuditEntry {
   time: string;
-  actor: string;
   action: string;
   entity: string;
   detail: string;
@@ -14,11 +13,13 @@ interface AuditEntry {
 
 export default function AuditHistoryPage() {
   const { org } = useAppState();
-  const [liveLogs, setLiveLogs] = useState<AuditEntry[] | null>(null);
+  const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!org.isLiveDb) {
-      setLiveLogs(null);
+      setLogs([]);
+      setLoading(false);
       return;
     }
     const supabase = createClient();
@@ -27,13 +28,12 @@ export default function AuditHistoryPage() {
       .select("action, entity, entity_id, details, created_at")
       .eq("org_id", org.id)
       .order("created_at", { ascending: false })
-      .limit(30)
+      .limit(50)
       .then(({ data }) => {
-        if (data && data.length > 0) {
-          setLiveLogs(
+        if (data) {
+          setLogs(
             data.map((row) => ({
               time: new Date(row.created_at).toLocaleString("fr-FR"),
-              actor: "Utilisateur authentifié",
               action: String(row.action).toUpperCase(),
               entity: row.entity,
               detail:
@@ -43,76 +43,54 @@ export default function AuditHistoryPage() {
             }))
           );
         }
+        setLoading(false);
       });
   }, [org.id, org.isLiveDb]);
-
-  const demoLogs: AuditEntry[] = [
-    {
-      time: "11/11/2026 à 21:14",
-      actor: "Propriétaire (owner)",
-      action: "INSERT",
-      entity: "payments",
-      detail: `Encaissement validé + génération du reçu ${
-        org.payments[0]?.receiptNumber ?? "REC-2026-0088"
-      }`,
-    },
-    {
-      time: "11/11/2026 à 18:40",
-      actor: "Propriétaire (owner)",
-      action: "INSERT",
-      entity: "reminder_logs",
-      detail: `Relance WhatsApp envoyée sur ${org.documents[0]?.number ?? "FAC"}`,
-    },
-    {
-      time: "08/11/2026 à 10:15",
-      actor: "Gestionnaire (manager)",
-      action: "UPDATE",
-      entity: "documents",
-      detail: `Émission et verrouillage de la facture ${
-        org.documents[0]?.number ?? "FAC"
-      }`,
-    },
-    {
-      time: "01/11/2026 à 09:00",
-      actor: "Système PostgreSQL",
-      action: "INSERT",
-      entity: "organizations",
-      detail: `Création de ${org.name} avec essai Pro de 14 jours`,
-    },
-  ];
-
-  const logs = liveLogs ?? demoLogs;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-[#0B1F3A]">
-          🛡️ Historique des opérations (Journal d&apos;Audit)
+          🛡️ Historique des opérations
         </h1>
         <p className="text-xs text-slate-500">
-          Traçabilité inaltérable alimentée automatiquement par le trigger PostgreSQL `audit_row()` (Exigence HIST-1 & HIST-2).
+          Journal d&apos;audit enregistré en temps réel dans PostgreSQL (`audit_logs`).
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
-        {logs.map((log, i) => (
-          <div
-            key={i}
-            className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-          >
-            <div className="space-y-0.5">
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs text-slate-500">
+          Chargement du journal d&apos;audit...
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center space-y-2">
+          <div className="text-base font-extrabold text-[#0B1F3A]">
+            Aucune opération journalisée
+          </div>
+          <p className="text-xs text-slate-500">
+            Les créations et modifications de clients, factures et paiements apparaîtront automatiquement ici.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-sm">
+          {logs.map((log, i) => (
+            <div
+              key={i}
+              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+            >
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-slate-100 font-bold text-[#0B1F3A]">
                   {log.action} · {log.entity}
                 </span>
-                <span className="font-semibold text-slate-800">{log.detail}</span>
+                <span className="font-mono text-slate-700 truncate max-w-xl">
+                  {log.detail}
+                </span>
               </div>
-              <div className="text-slate-500">Par : {log.actor}</div>
+              <div className="text-slate-400 font-mono shrink-0">{log.time}</div>
             </div>
-            <div className="text-slate-400 font-mono shrink-0">{log.time}</div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

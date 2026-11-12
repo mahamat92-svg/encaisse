@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { DEMO_ORGS } from "@/lib/demo-data";
 import { formatCFA, formatDate } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -13,7 +12,6 @@ interface PublicDocPayload {
   issueDate: string;
   dueDate: string;
   clientName: string;
-  whatsappPhone: string;
   total: number;
   paidTotal: number;
   balance: number;
@@ -37,23 +35,14 @@ interface PublicDocPayload {
 export default function PublicInvoicePage() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
-  const [livePayload, setLivePayload] = useState<PublicDocPayload | null>(null);
-
-  const allDocs = [
-    ...DEMO_ORGS.commerce.documents.map((d) => ({
-      doc: d,
-      org: DEMO_ORGS.commerce,
-    })),
-    ...DEMO_ORGS.etablissement.documents.map((d) => ({
-      doc: d,
-      org: DEMO_ORGS.etablissement,
-    })),
-  ];
-
-  const demoMatch = allDocs.find((x) => x.doc.publicToken === token);
+  const [view, setView] = useState<PublicDocPayload | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (demoMatch || !token || !isSupabaseConfigured()) return;
+    if (!token || !isSupabaseConfigured()) {
+      setLoading(false);
+      return;
+    }
     const supabase = createClient();
     supabase
       .rpc("get_public_document", { p_token: token })
@@ -61,83 +50,83 @@ export default function PublicInvoicePage() {
         if (data && data.number) {
           const total = Number(data.total ?? 0);
           const balance = Number(data.balance ?? 0);
-          setLivePayload({
+          setView({
             number: data.number,
             docType: data.type || "invoice",
             issueDate: data.issue_date || new Date().toISOString().slice(0, 10),
             dueDate: data.due_date || new Date().toISOString().slice(0, 10),
             clientName: data.client_name || "Client",
-            whatsappPhone: "",
             total,
             paidTotal: Math.max(total - balance, 0),
             balance,
             org: {
               name: data.org?.name || "Entreprise",
-              city: data.org?.city || "Cameroun",
+              city: data.org?.city || "",
               phone: data.org?.phone || "",
-              niu: data.org?.niu || "Non renseigné",
-              rccm: data.org?.rccm || "Non renseigné",
-              mtnMomoNumber: data.org?.mtn_momo_number || "Non renseigné",
-              orangeMoneyNumber: data.org?.orange_money_number || "Non renseigné",
+              niu: data.org?.niu || "",
+              rccm: data.org?.rccm || "",
+              mtnMomoNumber: data.org?.mtn_momo_number || "",
+              orangeMoneyNumber: data.org?.orange_money_number || "",
             },
             lines: Array.isArray(data.lines)
               ? data.lines.map(
-                (l: {
-                  label?: string;
-                  quantity?: number;
-                  unit_price?: number;
-                  total?: number;
-                }) => ({
-                  label: String(l.label ?? "Article"),
-                  quantity: Number(l.quantity ?? 1),
-                  unitPrice: Number(l.unit_price ?? 0),
-                  total: Number(l.total ?? 0),
-                })
-              )
+                  (l: {
+                    label?: string;
+                    quantity?: number;
+                    unit_price?: number;
+                    total?: number;
+                  }) => ({
+                    label: String(l.label ?? "Article"),
+                    quantity: Number(l.quantity ?? 1),
+                    unitPrice: Number(l.unit_price ?? 0),
+                    total: Number(l.total ?? 0),
+                  })
+                )
               : [],
           });
         }
+        setLoading(false);
       });
-  }, [demoMatch, token]);
+  }, [token]);
 
-  const fallback = demoMatch ?? allDocs[0];
-  const view: PublicDocPayload = livePayload ?? {
-    number: fallback.doc.number,
-    docType: fallback.doc.docType,
-    issueDate: fallback.doc.issueDate,
-    dueDate: fallback.doc.dueDate,
-    clientName: fallback.doc.clientName,
-    whatsappPhone: fallback.doc.whatsappPhone,
-    total: fallback.doc.total,
-    paidTotal: fallback.doc.paidTotal,
-    balance: fallback.doc.balance,
-    org: {
-      name: fallback.org.name,
-      city: fallback.org.city,
-      phone: fallback.org.phone,
-      niu: fallback.org.niu,
-      rccm: fallback.org.rccm,
-      mtnMomoNumber: fallback.org.mtnMomoNumber,
-      orangeMoneyNumber: fallback.org.orangeMoneyNumber,
-    },
-    lines: fallback.doc.lines.map((l) => ({
-      label: l.label,
-      quantity: l.quantity,
-      unitPrice: l.unitPrice,
-      total: l.total,
-    })),
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6 text-xs text-slate-500">
+        Chargement du document...
+      </div>
+    );
+  }
+
+  if (!view) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center max-w-md space-y-4">
+          <h1 className="text-lg font-extrabold text-[#0B1F3A]">
+            Document introuvable
+          </h1>
+          <p className="text-xs text-slate-500">
+            Ce lien de facture n&apos;existe pas ou le document est encore à l&apos;état de brouillon.
+          </p>
+          <Link
+            href="/app/documents"
+            className="inline-block px-4 py-2 rounded-xl bg-[#0B1F3A] text-white text-xs font-bold"
+          >
+            ← Retour aux factures
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
-        {/* Barre d'actions (masquée à l'impression PDF) */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm no-print">
           <Link
             href="/app/documents"
             className="text-xs font-bold text-slate-600 hover:text-slate-900"
           >
-            ← Retour aux documents
+            ← Retour aux factures
           </Link>
           <button
             type="button"
@@ -148,19 +137,23 @@ export default function PublicInvoicePage() {
           </button>
         </div>
 
-        {/* Feuille de facture imprimable */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-10 shadow-sm space-y-8">
           <div className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-200 pb-6">
             <div>
               <div className="text-xl font-extrabold text-[#0B1F3A]">
                 {view.org.name}
               </div>
-              <div className="text-xs text-slate-600 mt-1">
-                📍 {view.org.city} {view.org.phone ? `· Tél : ${view.org.phone}` : ""}
-              </div>
-              <div className="text-xs text-slate-500">
-                NIU : {view.org.niu} · RCCM : {view.org.rccm}
-              </div>
+              {view.org.city || view.org.phone ? (
+                <div className="text-xs text-slate-600 mt-1">
+                  {view.org.city} {view.org.phone ? `· ${view.org.phone}` : ""}
+                </div>
+              ) : null}
+              {view.org.niu || view.org.rccm ? (
+                <div className="text-xs text-slate-500">
+                  {view.org.niu ? `NIU : ${view.org.niu} ` : ""}
+                  {view.org.rccm ? `· RCCM : ${view.org.rccm}` : ""}
+                </div>
+              ) : null}
             </div>
 
             <div className="sm:text-right">
@@ -171,7 +164,8 @@ export default function PublicInvoicePage() {
                 {view.number}
               </div>
               <div className="text-xs text-slate-500">
-                Date : {formatDate(view.issueDate)} · Échéance : {formatDate(view.dueDate)}
+                Date : {formatDate(view.issueDate)} · Échéance :{" "}
+                {formatDate(view.dueDate)}
               </div>
             </div>
           </div>
@@ -181,9 +175,6 @@ export default function PublicInvoicePage() {
             <div className="text-base font-extrabold text-[#0B1F3A]">
               {view.clientName}
             </div>
-            {view.whatsappPhone ? (
-              <div className="text-slate-600">WhatsApp : {view.whatsappPhone}</div>
-            ) : null}
           </div>
 
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
@@ -201,7 +192,9 @@ export default function PublicInvoicePage() {
                   <td className="py-3 font-semibold text-slate-800">{l.label}</td>
                   <td className="py-3 text-right">{l.quantity}</td>
                   <td className="py-3 text-right">{formatCFA(l.unitPrice)}</td>
-                  <td className="py-3 text-right font-bold">{formatCFA(l.total)}</td>
+                  <td className="py-3 text-right font-bold">
+                    {formatCFA(l.total)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -209,20 +202,21 @@ export default function PublicInvoicePage() {
 
           <div className="flex flex-col sm:flex-row justify-between gap-6 pt-4 border-t border-slate-200">
             <div className="space-y-2 text-xs">
-              <div className="font-extrabold text-[#0B1F3A] uppercase">
-                Règlement par Mobile Money :
-              </div>
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
-                <div>
-                  💛 <strong>MTN MoMo :</strong> {view.org.mtnMomoNumber}
+              {view.org.mtnMomoNumber || view.org.orangeMoneyNumber ? (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+                  {view.org.mtnMomoNumber ? (
+                    <div>
+                      💛 <strong>MTN MoMo :</strong> {view.org.mtnMomoNumber}
+                    </div>
+                  ) : null}
+                  {view.org.orangeMoneyNumber ? (
+                    <div>
+                      🧡 <strong>Orange Money :</strong>{" "}
+                      {view.org.orangeMoneyNumber}
+                    </div>
+                  ) : null}
                 </div>
-                <div>
-                  🧡 <strong>Orange Money :</strong> {view.org.orangeMoneyNumber}
-                </div>
-                <div className="text-[11px] text-slate-600 pt-1">
-                  Indiquez la référence <strong>{view.number}</strong> lors du paiement.
-                </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="w-full sm:w-64 space-y-1.5 text-xs">
@@ -239,14 +233,6 @@ export default function PublicInvoicePage() {
                 <span>{formatCFA(view.balance)}</span>
               </div>
             </div>
-          </div>
-
-          {/* Mention légale R-6 / DOC-10 */}
-          <div className="pt-6 border-t border-slate-100 text-[11px] text-slate-400 flex flex-col sm:flex-row justify-between gap-2">
-            <span>
-              Document commercial généré via InnovTech Encaisse — Document non certifié par la DGI (Règle R-6).
-            </span>
-            <span>Propulsé par InnovTech AI</span>
           </div>
         </div>
       </div>

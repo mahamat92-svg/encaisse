@@ -14,18 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function AiStudioPage() {
   const { mode, org, refreshOrgData } = useAppState();
 
-  const examples =
-    mode === "etablissement"
-      ? [
-          "Facture pour Ewane Samuel Junior : 1 scolarité 2ème tranche à 95000, 1 bus scolaire à 45000",
-          "Facture pour Ndi Grace Bih : 1 inscription annuelle à 25000, 1 première tranche à 100000",
-        ]
-      : [
-          "Facture pour Moussa : 3 sacs de ciment à 5500, 10 barres de fer à 4200, livraison 2000",
-          "Devis pour Entreprise Fotso : 5 seaux de peinture à 38000, main d'œuvre 45000",
-        ];
-
-  const [input, setInput] = useState(examples[0]);
+  const [input, setInput] = useState("");
   const [applyVat, setApplyVat] = useState(org.vatRegistered);
   const [approvedNumber, setApprovedNumber] = useState<string | null>(null);
   const [publicToken, setPublicToken] = useState<string | null>(null);
@@ -37,17 +26,13 @@ export default function AiStudioPage() {
   const [voiceLang, setVoiceLang] = useState<"fr-FR" | "en-US">("fr-FR");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // État pour l'Assistant IA de Relance Bilingue (IA-2 & IA-3)
-  const [remClient, setRemClient] = useState(
-    org.clients[0]?.name || "M. Kamga Jean-Paul"
-  );
+  // État pour l'Assistant IA de Relance Bilingue (basé uniquement sur les vraies données)
+  const [remClient, setRemClient] = useState(org.clients[0]?.name || "");
   const [remDocNumber, setRemDocNumber] = useState(
-    org.documents[0]?.number || "FAC-2026-0001"
+    org.documents[0]?.number || ""
   );
-  const [remBalance, setRemBalance] = useState(
-    org.documents[0]?.balance || 65000
-  );
-  const [remDays, setRemDays] = useState(org.documents[0]?.daysOverdue || 7);
+  const [remBalance, setRemBalance] = useState(org.documents[0]?.balance || 0);
+  const [remDays, setRemDays] = useState(org.documents[0]?.daysOverdue || 0);
   const [remTone, setRemTone] = useState<ReminderTone>("courteous");
   const [remLocale, setRemLocale] = useState<Locale>("fr");
   const [remCustom, setRemCustom] = useState("");
@@ -55,23 +40,16 @@ export default function AiStudioPage() {
   const [remLoading, setRemLoading] = useState(false);
 
   React.useEffect(() => {
-    setInput(
-      mode === "etablissement"
-        ? "Facture pour Ewane Samuel Junior : 1 scolarité 2ème tranche à 95000, 1 bus scolaire à 45000"
-        : "Facture pour Moussa : 3 sacs de ciment à 5500, 10 barres de fer à 4200, livraison 2000"
-    );
     setApplyVat(org.vatRegistered);
-    setApprovedNumber(null);
-    setPublicToken(null);
-    setAiParsed(null);
-    setRemClient(org.clients[0]?.name || "Client");
-    setRemDocNumber(org.documents[0]?.number || "FAC-2026-0001");
-    setRemBalance(org.documents[0]?.balance || 65000);
-  }, [mode, org.vatRegistered, org.clients, org.documents]);
+    setRemClient(org.clients[0]?.name || "");
+    setRemDocNumber(org.documents[0]?.number || "");
+    setRemBalance(org.documents[0]?.balance || 0);
+  }, [org.vatRegistered, org.clients, org.documents]);
 
-  const parsed = aiParsed ?? parseInvoiceDictation(input, applyVat);
+  const parsed = input.trim()
+    ? aiParsed ?? parseInvoiceDictation(input, applyVat)
+    : null;
 
-  // Dictée vocale au microphone (Web Speech API native à 0 FCFA)
   function handleVoiceDictation() {
     setErrorMsg(null);
     if (typeof window === "undefined") return;
@@ -125,6 +103,7 @@ export default function AiStudioPage() {
   }
 
   async function handleAnalyzeWithApi() {
+    if (!input.trim()) return;
     setAnalyzing(true);
     setErrorMsg(null);
     try {
@@ -175,6 +154,10 @@ export default function AiStudioPage() {
   }
 
   async function handleGenerateReminderAi() {
+    if (!remClient.trim() || !remDocNumber.trim()) {
+      setErrorMsg("Veuillez renseigner le destinataire et le numéro de facture.");
+      return;
+    }
     setRemLoading(true);
     setErrorMsg(null);
     try {
@@ -218,9 +201,9 @@ export default function AiStudioPage() {
 
   async function handleApprove() {
     setErrorMsg(null);
+    if (!parsed) return;
     if (!org.isLiveDb) {
-      const prefix = parsed.docType === "quote" ? "DEV" : "FAC";
-      setApprovedNumber(`${prefix}-2026-0099`);
+      setErrorMsg("Vous devez être connecté à votre compte Supabase pour émettre un document.");
       return;
     }
 
@@ -228,7 +211,6 @@ export default function AiStudioPage() {
     try {
       const supabase = createClient();
 
-      // 1. Chercher un client existant du même nom ou le créer automatiquement
       let clientId = org.clients.find(
         (c) => c.name.toLowerCase() === parsed.clientName.toLowerCase()
       )?.id;
@@ -252,7 +234,6 @@ export default function AiStudioPage() {
         clientId = newClient.id;
       }
 
-      // 2. Créer le document en brouillon
       const { data: draftDoc, error: docErr } = await supabase
         .from("documents")
         .insert({
@@ -268,7 +249,6 @@ export default function AiStudioPage() {
         throw new Error(docErr?.message || "Impossible de créer le brouillon.");
       }
 
-      // 3. Insérer toutes les lignes dictées
       const vatBp = applyVat ? org.vatRateBp : 0;
       const linesPayload = parsed.lines.map((l, idx) => ({
         org_id: org.id,
@@ -289,7 +269,6 @@ export default function AiStudioPage() {
         throw new Error(linesErr.message);
       }
 
-      // 4. Émettre et verrouiller via la RPC issue_document
       const { data: issued, error: issueErr } = await supabase.rpc(
         "issue_document",
         { p_doc: draftDoc.id }
@@ -299,7 +278,7 @@ export default function AiStudioPage() {
         throw new Error(issueErr.message);
       }
 
-      setApprovedNumber(issued?.number || "FAC-2026-0001");
+      setApprovedNumber(issued?.number || "");
       setPublicToken(draftDoc.public_token);
       await refreshOrgData();
     } catch (err) {
@@ -316,27 +295,29 @@ export default function AiStudioPage() {
       ? `${window.location.origin}/f/${publicToken}`
       : "";
 
-  const waShareMessage = `Bonjour ${parsed.clientName},\nVoici votre ${
-    parsed.docType === "quote" ? "devis" : "facture"
-  } *${approvedNumber ?? "BROUILLON"}* (${org.name}) d'un montant total de *${formatCFA(
-    parsed.total
-  )}*.\n${publicUrl ? `Lien PDF : ${publicUrl}\n` : ""}• MTN MoMo : ${
-    org.mtnMomoNumber
-  }\n• Orange Money : ${org.orangeMoneyNumber}`;
+  const waShareMessage = parsed
+    ? `Bonjour ${parsed.clientName},\nVoici votre ${
+        parsed.docType === "quote" ? "devis" : "facture"
+      } *${approvedNumber ?? "BROUILLON"}* (${org.name}) d'un montant total de *${formatCFA(
+        parsed.total
+      )}*.\n${publicUrl ? `Lien PDF : ${publicUrl}\n` : ""}• MTN MoMo : ${
+        org.mtnMomoNumber
+      }\n• Orange Money : ${org.orangeMoneyNumber}`
+    : "";
 
   return (
     <div className="space-y-8">
       <div className="bg-[#0B1F3A] text-white rounded-2xl p-6 space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
-          <span>✨ Atelier IA Phase 8 (Exigences IA-1 à IA-6)</span>
+          <span>✨ Atelier IA</span>
           <span>•</span>
           <span>Moteur actif : {providerUsed}</span>
         </div>
         <h1 className="text-2xl font-extrabold">
-          Dictée vocale & écrite → Brouillon de facture + Assistant Relances Bilingue
+          Dictée vocale & écrite → Facture + Assistant Relances Bilingue
         </h1>
         <p className="text-xs sm:text-sm text-slate-300 max-w-3xl">
-          Parlez au microphone ou écrivez votre vente en français ou en anglais. Conformément à la règle de sécurité <strong>IA-5</strong>, l&apos;IA prépare le brouillon mais ne publie jamais un document sans votre clic de validation.
+          Parlez au microphone ou écrivez votre vente en français ou en anglais. L&apos;IA prépare le brouillon mais ne crée jamais une facture sans votre validation.
         </p>
       </div>
 
@@ -346,9 +327,7 @@ export default function AiStudioPage() {
         </div>
       ) : null}
 
-      {/* MODULE 1 : Dictée vocale & texte -> Facture / Devis */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Zone de saisie + Micro */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-sm font-extrabold text-[#0B1F3A]">
@@ -379,8 +358,8 @@ export default function AiStudioPage() {
               <button
                 type="button"
                 onClick={handleAnalyzeWithApi}
-                disabled={analyzing}
-                className="text-[11px] font-bold text-white bg-[#0B1F3A] hover:bg-[#132D54] px-3 py-1.5 rounded-lg"
+                disabled={analyzing || !input.trim()}
+                className="text-[11px] font-bold text-white bg-[#0B1F3A] hover:bg-[#132D54] disabled:opacity-50 px-3 py-1.5 rounded-lg"
               >
                 {analyzing ? "Analyse IA..." : "⚡ Structurer via IA"}
               </button>
@@ -396,30 +375,8 @@ export default function AiStudioPage() {
               setApprovedNumber(null);
             }}
             className="w-full p-3.5 rounded-xl border border-slate-300 text-sm leading-relaxed"
-            placeholder="Ex: Facture pour Moussa : 3 sacs de ciment à 5500, livraison 2000"
+            placeholder="Saisissez ou dictez votre facture ici..."
           />
-
-          <div className="space-y-1.5">
-            <div className="text-xs font-bold text-slate-500">
-              Exemples rapides à tester en 1 clic :
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {examples.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => {
-                    setInput(ex);
-                    setAiParsed(null);
-                    setApprovedNumber(null);
-                  }}
-                  className="text-left text-xs p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700"
-                >
-                  « {ex} »
-                </button>
-              ))}
-            </div>
-          </div>
 
           <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 pt-2">
             <input
@@ -434,106 +391,116 @@ export default function AiStudioPage() {
           </label>
         </div>
 
-        {/* Brouillon structuré généré en direct */}
         <div className="lg:col-span-6 bg-white rounded-2xl border-2 border-emerald-500/40 p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                2. Brouillon structuré (Validation humaine obligatoire — Règle IA-5)
-              </span>
-              <h2 className="text-lg font-extrabold text-[#0B1F3A]">
-                {parsed.docType === "quote" ? "DEVIS" : "FACTURE"} — {parsed.clientName}
+          {!parsed ? (
+            <div className="p-8 text-center space-y-2">
+              <div className="text-3xl">🎙️</div>
+              <h2 className="text-base font-extrabold text-[#0B1F3A]">
+                Aucune dictée en cours
               </h2>
-            </div>
-            <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-[#0B1F3A]">
-              {approvedNumber ?? "BROUILLON"}
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-100 text-xs">
-            {parsed.lines.map((line, idx) => (
-              <div key={idx} className="py-2.5 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-slate-800">{line.label}</div>
-                  <div className="text-slate-500">
-                    {line.quantity} × {formatCFA(line.unitPrice)}
-                  </div>
-                </div>
-                <div className="font-extrabold text-slate-900">
-                  {formatCFA(line.total)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-slate-50 p-4 rounded-xl space-y-1 text-xs">
-            <div className="flex justify-between text-slate-600">
-              <span>Sous-total HT</span>
-              <span className="font-semibold">{formatCFA(parsed.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>TVA (19,25 %)</span>
-              <span className="font-semibold">{formatCFA(parsed.vat)}</span>
-            </div>
-            <div className="flex justify-between text-base font-extrabold text-[#0B1F3A] pt-1 border-t border-slate-200">
-              <span>Total TTC à payer</span>
-              <span>{formatCFA(parsed.total)}</span>
-            </div>
-          </div>
-
-          {approvedNumber ? (
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
-              <div className="text-xs font-bold text-emerald-900">
-                ✅ Document validé et numéroté en base : {approvedNumber}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href={buildWhatsAppLink("", waShareMessage)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
-                >
-                  💬 Envoyer maintenant sur WhatsApp
-                </a>
-                {publicToken ? (
-                  <a
-                    href={`/f/${publicToken}`}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-[#0B1F3A] text-xs font-bold"
-                  >
-                    🖨️ Voir / Imprimer le PDF
-                  </a>
-                ) : null}
-              </div>
+              <p className="text-xs text-slate-500">
+                Écrivez ou dictez une vente à gauche pour prévisualiser la facture avant création.
+              </p>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={handleApprove}
-              disabled={issuing}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-sm"
-            >
-              {issuing
-                ? "Émission et numérotation en cours..."
-                : `✔ Je vérifie et j'émets ce document (${formatCFA(parsed.total)})`}
-            </button>
+            <>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
+                    2. Brouillon structuré (Validation humaine obligatoire)
+                  </span>
+                  <h2 className="text-lg font-extrabold text-[#0B1F3A]">
+                    {parsed.docType === "quote" ? "DEVIS" : "FACTURE"} — {parsed.clientName}
+                  </h2>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-[#0B1F3A]">
+                  {approvedNumber ?? "BROUILLON"}
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-100 text-xs">
+                {parsed.lines.map((line, idx) => (
+                  <div key={idx} className="py-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-slate-800">{line.label}</div>
+                      <div className="text-slate-500">
+                        {line.quantity} × {formatCFA(line.unitPrice)}
+                      </div>
+                    </div>
+                    <div className="font-extrabold text-slate-900">
+                      {formatCFA(line.total)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-xl space-y-1 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Sous-total HT</span>
+                  <span className="font-semibold">{formatCFA(parsed.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>TVA (19,25 %)</span>
+                  <span className="font-semibold">{formatCFA(parsed.vat)}</span>
+                </div>
+                <div className="flex justify-between text-base font-extrabold text-[#0B1F3A] pt-1 border-t border-slate-200">
+                  <span>Total TTC à payer</span>
+                  <span>{formatCFA(parsed.total)}</span>
+                </div>
+              </div>
+
+              {approvedNumber ? (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+                  <div className="text-xs font-bold text-emerald-900">
+                    ✅ Document validé et numéroté en base : {approvedNumber}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={buildWhatsAppLink("", waShareMessage)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+                    >
+                      💬 Envoyer maintenant sur WhatsApp
+                    </a>
+                    {publicToken ? (
+                      <a
+                        href={`/f/${publicToken}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-[#0B1F3A] text-xs font-bold"
+                      >
+                        🖨️ Voir / Imprimer le PDF
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  disabled={issuing}
+                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-sm"
+                >
+                  {issuing
+                    ? "Émission et numérotation en cours..."
+                    : `✔ Créer la facture (${formatCFA(parsed.total)})`}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* MODULE 2 : Rédacteur & Traducteur IA de Relances WhatsApp (IA-2 & IA-3) */}
+      {/* MODULE 2 : Rédacteur & Traducteur IA de Relances WhatsApp */}
       <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-              Service IA-2 & IA-3 · Recouvrement Bilingue FR / EN
+              Recouvrement Bilingue FR / EN
             </span>
             <h2 className="text-lg font-extrabold text-[#0B1F3A]">
               💬 Assistant IA de rédaction & traduction de relances WhatsApp
             </h2>
           </div>
-          <span className="text-xs text-slate-500">
-            Adapte le ton (Courtois, Ferme, Dernier rappel) et la langue du destinataire
-          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -545,18 +512,20 @@ export default function AiStudioPage() {
               type="text"
               value={remClient}
               onChange={(e) => setRemClient(e.target.value)}
+              placeholder="Nom du client"
               className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
             />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              N° Facture & Solde (FCFA)
+              N° Facture & Solde (XAF)
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={remDocNumber}
                 onChange={(e) => setRemDocNumber(e.target.value)}
+                placeholder="N° facture"
                 className="w-1/2 px-2.5 py-2 rounded-xl border border-slate-300 text-xs"
               />
               <input
@@ -599,8 +568,8 @@ export default function AiStudioPage() {
               onChange={(e) => setRemLocale(e.target.value as Locale)}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
             >
-              <option value="fr">🇫🇷 Français (Francophone)</option>
-              <option value="en">🇬🇧 English (Anglophone)</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
             </select>
           </div>
         </div>
@@ -608,13 +577,13 @@ export default function AiStudioPage() {
         <div className="flex flex-col sm:flex-row gap-3 items-end">
           <div className="flex-1 w-full">
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Consigne particulière (optionnel — ex: proposer un paiement en 2 fois d&apos;ici vendredi)
+              Consigne particulière (optionnel)
             </label>
             <input
               type="text"
               value={remCustom}
               onChange={(e) => setRemCustom(e.target.value)}
-              placeholder="Ex: Proposer d'envoyer une avance de 30 000 FCFA aujourd'hui par MTN MoMo"
+              placeholder="Instruction optionnelle..."
               className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs"
             />
           </div>

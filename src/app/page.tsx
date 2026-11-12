@@ -8,7 +8,14 @@ import { PLANS } from "@/lib/demo-data";
 import { formatCFA } from "@/lib/format";
 
 export default function HomePage() {
-  const { locale, setMode } = useAppState();
+  const { locale, setMode, org } = useAppState();
+
+  const totalRevenue = org.documents
+    .filter((d) => d.docType === "invoice")
+    .reduce((acc, d) => acc + d.paid, 0);
+  const totalReceivables = org.documents
+    .filter((d) => d.docType === "invoice")
+    .reduce((acc, d) => acc + d.balance, 0);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -21,27 +28,27 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold">
               <span>🇨🇲 Conçu pour le Cameroun & l&apos;Afrique</span>
               <span>•</span>
-              <span>MTN MoMo · Orange Money · WhatsApp</span>
+              <span>MTN MoMo · Orange Money · Fapshi · WhatsApp</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
               {locale === "fr" ? (
                 <>
-                  Remplacez le cahier de dettes.{" "}
-                  <span className="text-emerald-400">Facturez en 30 secondes</span> et faites-vous payer plus vite.
+                  Gérez vos produits, factures et encaissements{" "}
+                  <span className="text-emerald-400">en temps réel</span>.
                 </>
               ) : (
                 <>
-                  Replace the paper ledger.{" "}
-                  <span className="text-emerald-400">Invoice in 30 seconds</span> and get paid faster.
+                  Manage your products, invoices and collections{" "}
+                  <span className="text-emerald-400">in real time</span>.
                 </>
               )}
             </h1>
 
             <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
               {locale === "fr"
-                ? "InnovTech Encaisse transforme vos ventes à crédit et vos frais de scolarité en un tableau clair « Qui me doit combien », génère vos factures et reçus PDF en FCFA, et prépare vos relances WhatsApp polies en un clic."
-                : "InnovTech Encaisse turns credit sales and school tuition into a clear 'Who owes me what' dashboard, generates PDF invoices & receipts in FCFA, and prepares polite WhatsApp reminders in one click."}
+                ? "InnovTech Encaisse centralise votre catalogue, vos commandes/factures en XAF, vos encaissements Mobile Money (Fapshi, MTN MoMo, Orange Money) et vos relances WhatsApp sur une base Supabase 100 % isolée."
+                : "InnovTech Encaisse centralizes your catalog, XAF invoices, Mobile Money payments (Fapshi, MTN MoMo, Orange Money) and WhatsApp reminders on a strictly isolated Supabase database."}
             </p>
 
             <div className="flex flex-wrap gap-3 pt-2">
@@ -50,28 +57,28 @@ export default function HomePage() {
                 className="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[#0B1F3A] font-extrabold text-sm sm:text-base shadow-lg transition-colors"
               >
                 {locale === "fr"
-                  ? "Démarrer gratuitement (14 jours Pro offerts)"
-                  : "Start free (14-day Pro trial)"}
+                  ? "Créer mon compte gratuitement"
+                  : "Create my free account"}
               </Link>
               <Link
                 href="/app"
                 className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base border border-white/20 transition-colors"
               >
-                {locale === "fr" ? "Tester la démo en direct →" : "Try Live Demo →"}
+                {locale === "fr" ? "Ouvrir le tableau de bord →" : "Open Dashboard →"}
               </Link>
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-800 text-xs sm:text-sm">
               <div>
-                <div className="font-extrabold text-lg sm:text-xl text-[#F5A524]">30 sec</div>
+                <div className="font-extrabold text-lg sm:text-xl text-[#F5A524]">XAF</div>
                 <div className="text-slate-300">
-                  {locale === "fr" ? "par facture (saisie ou dictée IA)" : "per invoice (form or AI dictation)"}
+                  {locale === "fr" ? "facturation & reçus PDF" : "PDF invoicing & receipts"}
                 </div>
               </div>
               <div>
-                <div className="font-extrabold text-lg sm:text-xl text-emerald-400">0 FCFA</div>
+                <div className="font-extrabold text-lg sm:text-xl text-emerald-400">Fapshi</div>
                 <div className="text-slate-300">
-                  {locale === "fr" ? "frais WhatsApp avec liens wa.me" : "WhatsApp fees via wa.me links"}
+                  {locale === "fr" ? "connexion API Mobile Money" : "Mobile Money API integration"}
                 </div>
               </div>
               <div>
@@ -83,77 +90,57 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Aperçu visuel du Tableau de bord */}
+          {/* Carte état réel du compte */}
           <div className="lg:col-span-5">
-            <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-5 space-y-4">
+            <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                    Aperçu en direct
+                    État en temps réel
                   </span>
                   <h2 className="font-bold text-base text-[#0B1F3A]">
-                    Quincaillerie & BTP Ngo & Fils
+                    {org.name || "Votre Entreprise"}
                   </h2>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
-                  Douala · XAF
+                  XAF
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                  <div className="text-xs text-slate-500 font-medium">On vous doit</div>
-                  <div className="text-lg font-extrabold text-[#0B1F3A] mt-1">700 000 FCFA</div>
-                  <div className="text-[11px] text-amber-700 font-semibold mt-0.5">
-                    3 factures ouvertes
+                  <div className="text-xs text-slate-500 font-medium">Chiffre d&apos;affaires encaissé</div>
+                  <div className="text-lg font-extrabold text-emerald-700 mt-1">
+                    { totalRevenue.toLocaleString("fr-FR") } XAF
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                    {org.documents.filter((d) => d.docType === "invoice").length} vente(s)
                   </div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
-                  <div className="text-xs text-emerald-800 font-medium">Encaissé ce mois</div>
-                  <div className="text-lg font-extrabold text-emerald-700 mt-1">385 000 FCFA</div>
-                  <div className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                    MTN MoMo & Orange Money
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <div className="text-xs text-slate-500 font-medium">Reste à encaisser</div>
+                  <div className="text-lg font-extrabold text-[#0B1F3A] mt-1">
+                    { totalReceivables.toLocaleString("fr-FR") } XAF
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                    {org.catalog.length} produit(s) au catalogue
                   </div>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#0B1F3A] text-white space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#F5A524] font-bold">✨ Dictée IA (30 secondes)</span>
-                  <span className="text-slate-300">Français & Anglais</span>
-                </div>
-                <p className="text-xs italic text-slate-200 bg-white/10 p-2.5 rounded-lg">
-                  « Facture pour Entreprise Fotso : 80 sacs de ciment à 5 500, 25 barres de fer à 4 200 »
-                </p>
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-emerald-300 font-semibold">
-                    → FAC-2026-0042 · Total : 545 000 FCFA
-                  </span>
-                  <Link
-                    href="/app/ia"
-                    className="underline font-bold text-white hover:text-emerald-300"
-                  >
-                    Essayer →
-                  </Link>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  À relancer aujourd&apos;hui sur WhatsApp
-                </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-xs">
-                  <div>
-                    <div className="font-bold text-slate-900">Entreprise Bâtiment Fotso</div>
-                    <div className="text-slate-600">Reste : 345 000 FCFA · Retard J+7</div>
-                  </div>
-                  <Link
-                    href="/app/relances"
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700"
-                  >
-                    💬 Relancer
-                  </Link>
-                </div>
+              <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                <Link
+                  href="/app/catalogue"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold text-center"
+                >
+                  📦 Gérer mes produits
+                </Link>
+                <Link
+                  href="/app/documents"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold text-center"
+                >
+                  📄 Créer une facture
+                </Link>
               </div>
             </div>
           </div>
@@ -181,12 +168,12 @@ export default function HomePage() {
                 🏪 MODE COMMERCE & SERVICES
               </div>
               <h3 className="text-xl font-extrabold text-[#0B1F3A]">
-                Quincailleries, grossistes, prestataires B2B, ateliers & freelances
+                Quincailleries, grossistes, prestataires B2B, boutiques & freelances
               </h3>
               <ul className="space-y-2.5 text-sm text-slate-600">
-                <li>✅ Devis convertibles en facture en un clic (`DEV-2026-0001` → `FAC-2026-0001`)</li>
-                <li>✅ Suivi des paiements partiels (avances chantier, acomptes Mobile Money)</li>
-                <li>✅ Plafond de crédit par client pour bloquer les mauvais payeurs</li>
+                <li>✅ Catalogue produits et services avec prix en XAF</li>
+                <li>✅ Factures et commandes numérotées automatiquement</li>
+                <li>✅ Suivi des paiements partiels et encaissements Mobile Money / Fapshi</li>
                 <li>✅ Calcul optionnel de la TVA camerounaise (19,25 %)</li>
               </ul>
             </div>
@@ -196,7 +183,7 @@ export default function HomePage() {
                 onClick={() => setMode("commerce")}
                 className="inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-700"
               >
-                <span>Explorer la démo Commerce & BTP</span>
+                <span>Accéder à l&apos;espace Commerce</span>
                 <span>→</span>
               </Link>
             </div>
@@ -212,9 +199,9 @@ export default function HomePage() {
               </h3>
               <ul className="space-y-2.5 text-sm text-slate-600">
                 <li>✅ Fiche Élève (classe, année scolaire) reliée au Parent Payeur (numéro WhatsApp)</li>
-                <li>✅ Échéanciers en 2 ou 3 tranches de scolarité avec calcul automatique du retard</li>
-                <li>✅ Reçus officiels numérotés (`REC-2026-0001`) envoyés aux parents sur WhatsApp</li>
-                <li>✅ Bilingue Français / Anglais (sections francophone et anglophone)</li>
+                <li>✅ Échéanciers de scolarité avec suivi du solde restant</li>
+                <li>✅ Reçus officiels numérotés envoyés aux parents sur WhatsApp</li>
+                <li>✅ Bilingue Français / Anglais</li>
               </ul>
             </div>
             <div className="pt-6 mt-6 border-t border-slate-100">
@@ -223,7 +210,7 @@ export default function HomePage() {
                 onClick={() => setMode("etablissement")}
                 className="inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-700"
               >
-                <span>Explorer la démo École Privée</span>
+                <span>Accéder à l&apos;espace Établissement</span>
                 <span>→</span>
               </Link>
             </div>
@@ -285,7 +272,7 @@ export default function HomePage() {
                   href="/tarifs"
                   className="mt-6 w-full py-2.5 rounded-xl text-center text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-[#0B1F3A] transition-colors"
                 >
-                  Voir les 6 formules (jusqu&apos;à Établissement) →
+                  Voir les 6 formules →
                 </Link>
               </div>
             ))}
@@ -297,4 +284,3 @@ export default function HomePage() {
     </div>
   );
 }
-
