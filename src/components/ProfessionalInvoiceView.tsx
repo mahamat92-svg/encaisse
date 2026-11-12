@@ -369,32 +369,25 @@ function ProfessionalInvoiceViewInner({
           />
 
           <div className="p-6 sm:p-10 space-y-8">
-            {/* TOP : Logo marchand à gauche | "FACTURE" + Numéro FAC-2026-XXXX à droite */}
+            {/* TOP : Logo 70px dans un encadré sombre arrondi à gauche | "FACTURE" + Numéro FAC-2026-XXXX à droite */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 border-b border-slate-200 pb-6">
               {/* Gauche : Logo + Nom Entreprise + Coordonnées */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3.5">
-                  {invoice.merchant.logoUrl ? (
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border border-slate-200 p-1.5 flex items-center justify-center overflow-hidden shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={invoice.merchant.logoUrl}
-                        alt={invoice.merchant.name}
-                        className="max-w-full max-h-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className="w-14 h-14 rounded-2xl text-white flex items-center justify-center text-2xl font-extrabold shrink-0"
-                      style={{ backgroundColor: palette.hex }}
-                    >
-                      {invoice.merchant.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="w-[70px] h-[70px] rounded-2xl bg-[#0B1F3A] border border-slate-800 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={invoice.merchant.logoUrl || "/logo.png"}
+                      alt={invoice.merchant.name}
+                      width={70}
+                      height={70}
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                  </div>
 
                   <div>
                     <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">
-                      {invoice.merchant.name}
+                      {invoice.merchant.name || "InnovTech MHA Infinity"}
                     </h2>
                     {invoice.merchant.slogan ? (
                       <p
@@ -408,16 +401,17 @@ function ProfessionalInvoiceViewInner({
                 </div>
 
                 {/* Coordonnées de l'entreprise sous le logo */}
-                <div className="text-xs text-slate-600 space-y-0.5 leading-relaxed">
-                  {invoice.merchant.addressCity ? (
-                    <div>📍 {invoice.merchant.addressCity}</div>
-                  ) : null}
-                  {invoice.merchant.phone ? (
-                    <div>📞 Tél / WhatsApp : {invoice.merchant.phone}</div>
-                  ) : null}
-                  {invoice.merchant.email ? (
-                    <div>✉️ Email : {invoice.merchant.email}</div>
-                  ) : null}
+                <div className="text-xs text-slate-600 space-y-0.5 leading-relaxed font-medium">
+                  <div className="font-bold text-slate-800">
+                    {invoice.merchant.name || "InnovTech MHA Infinity"}
+                  </div>
+                  <div>
+                    {invoice.merchant.addressCity || DEFAULT_MERCHANT_LOCATION_LABEL}
+                  </div>
+                  <div>{invoice.merchant.email || OFFICIAL_EMAIL}</div>
+                  <div>
+                    WhatsApp: {invoice.merchant.phone || OFFICIAL_WHATSAPP_DISPLAY}
+                  </div>
                   {invoice.merchant.rccmNiu ? (
                     <div className="text-slate-500">
                       🏛️ {invoice.merchant.rccmNiu}

@@ -270,7 +270,19 @@ function SignupCardContent() {
   return (
     <main className="flex-1 bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] flex items-center justify-center px-4 py-10 sm:py-14">
       <div className="w-full max-w-xl bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6">
-        <div className="space-y-1.5 text-center border-b border-slate-100 pb-5">
+        <div className="space-y-2 text-center border-b border-slate-100 pb-5">
+          <div className="flex justify-center">
+            <div className="w-[80px] h-[80px] rounded-2xl bg-[#0B1F3A] border border-emerald-500/40 shadow-md overflow-hidden flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="InnovTech MHA Infinity"
+                width={80}
+                height={80}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
           <span className="inline-block px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800">
             🎁 7 jours gratuits, sans carte bancaire
           </span>

@@ -61,6 +61,20 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] text-white py-16 sm:py-24 px-4 sm:px-6 flex items-center">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full">
           <div className="lg:col-span-7 space-y-6">
+            {/* Logo officiel centré 120px dans le Héro */}
+            <div className="flex justify-center lg:justify-start">
+              <div className="w-[120px] h-[120px] rounded-2xl bg-[#071427] border-2 border-emerald-400/40 shadow-2xl overflow-hidden flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo.png"
+                  alt="InnovTech MHA Infinity"
+                  width={120}
+                  height={120}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold">
               <span>🇨🇲 Conçu pour le Cameroun & l&apos;Afrique</span>
               <span>•</span>

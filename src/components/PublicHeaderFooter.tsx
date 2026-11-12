@@ -13,14 +13,26 @@ import {
 } from "@/lib/format";
 import { WhatsAppIcon } from "./WhatsAppButton";
 
-export function BrandLogo({ light = false }: { light?: boolean }) {
+export function BrandLogo({
+  light = false,
+  size = 40,
+}: {
+  light?: boolean;
+  size?: number;
+}) {
   return (
     <Link href="/" className="inline-flex items-center gap-2.5 group">
-      <div className="w-9 h-9 rounded-xl bg-[#0B1F3A] border border-emerald-500/40 flex items-center justify-center shadow-sm relative overflow-hidden">
-        <span className="text-white font-extrabold text-lg tracking-tight">i</span>
-        <span
-          className="w-2 h-2 rounded-full bg-[#F5A524] absolute top-1.5 right-1.5"
-          title="InnovTech MHA Infinity"
+      <div
+        className="rounded-xl bg-[#0B1F3A] border border-emerald-500/40 flex items-center justify-center shadow-sm overflow-hidden shrink-0"
+        style={{ width: size, height: size }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt="InnovTech MHA Infinity"
+          width={size}
+          height={size}
+          className="w-full h-full object-cover"
         />
       </div>
       <div className="flex flex-col">
@@ -147,21 +159,28 @@ export function PublicFooter() {
     <footer className="bg-[#0B1F3A] text-slate-300 border-t border-slate-800 no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-12 gap-8">
         <div className="md:col-span-5 space-y-3">
-          <BrandLogo light />
-          <p className="text-sm text-slate-300 max-w-md leading-relaxed">
+          <BrandLogo light size={48} />
+          <div className="text-xs sm:text-sm text-slate-200 space-y-1 font-medium">
+            <div className="font-extrabold text-white">InnovTech MHA Infinity</div>
+            <div>Ngaoundéré, Adamawa - Cameroun</div>
+            <div>
+              <a href={`mailto:${OFFICIAL_EMAIL}`} className="hover:underline text-emerald-300">
+                {OFFICIAL_EMAIL}
+              </a>
+            </div>
+            <div>
+              <a
+                href={OFFICIAL_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline text-[#25D366] font-bold"
+              >
+                WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 max-w-md leading-relaxed">
             Une seule plateforme, tous vos métiers : Encaisse Boutique, École, Clinique, Immobilier, Artisan et ONG — Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp.
-          </p>
-          <p className="text-xs text-emerald-300 font-semibold">
-            📍 {DEFAULT_MERCHANT_LOCATION_LABEL}
-          </p>
-          <p className="text-xs text-slate-300">
-            📧 Support :{" "}
-            <a
-              href={`mailto:${OFFICIAL_EMAIL}`}
-              className="font-bold text-white hover:underline"
-            >
-              {OFFICIAL_EMAIL}
-            </a>
           </p>
         </div>
 

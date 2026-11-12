@@ -8,6 +8,11 @@ export const metadata: Metadata = {
     "InnovTech MHA Infinity — Une seule plateforme, tous vos métiers (Encaisse, École, Clinique, Immobilier, Artisan, ONG)",
   description:
     "Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp. Contact WhatsApp : +235 66 26 85 03.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

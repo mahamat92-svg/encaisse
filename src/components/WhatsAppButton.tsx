@@ -66,13 +66,7 @@ export function triggerStandaloneInvoicePdfPrint(
     info.issueDate || new Date().toISOString().slice(0, 10)
   );
 
-  const logoHtml = info.merchantLogoUrl
-    ? `<img src="${info.merchantLogoUrl}" alt="Logo" style="max-height:72px;max-width:140px;object-fit:contain;border:1px solid #e2e8f0;border-radius:12px;padding:6px;" />`
-    : `<div style="width:64px;height:64px;border-radius:14px;background:${palette.hex};color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;">${(
-      info.merchantName || "I"
-    )
-      .charAt(0)
-      .toUpperCase()}</div>`;
+  const logoHtml = `<div style="width:70px;height:70px;border-radius:14px;background:#0B1F3A;padding:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${info.merchantLogoUrl || "/logo.png"}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:10px;" /></div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="fr">

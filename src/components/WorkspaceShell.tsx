@@ -64,7 +64,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       {/* Barre latérale Desktop */}
       <aside className="hidden lg:flex lg:flex-col lg:w-68 bg-[#0B1F3A] text-white shrink-0 border-r border-slate-800 no-print">
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-          <BrandLogo light />
+          <BrandLogo light size={32} />
         </div>
 
         <div className="p-4 border-b border-slate-800/80 bg-[#132D54]/60">
