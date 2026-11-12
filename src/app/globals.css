@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #0b1f3a;
+  --navy-light: #132d54;
+  --emerald: #10b981;
+  --emerald-dark: #059669;
+  --gold: #f5a524;
+  --surface: #f8fafc;
+}
+
+html,
+body {
+  background-color: var(--surface);
+  color: #0f172a;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+}
+
