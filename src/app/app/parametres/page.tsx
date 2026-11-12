@@ -296,7 +296,7 @@ export default function MerchantSettingsFormPage() {
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Ex: InnovTech Encaisse"
+                placeholder="Ex: InnovTech MHA Infinity"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>
@@ -367,13 +367,13 @@ export default function MerchantSettingsFormPage() {
             </div>
           </div>
 
-          {/* Sélecteur de couleur principale */}
+          {/* Sélecteur de couleur principale : Vert / Bleu / Or */}
           <div className="space-y-2 pt-2">
             <label className="block text-xs font-bold text-slate-700">
-              Couleur principale des factures
+              Couleur principale des factures (Vert / Bleu / Or)
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {(["green", "blue", "orange", "black"] as BrandColorChoice[]).map(
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(["green", "blue", "gold"] as BrandColorChoice[]).map(
                 (colKey) => {
                   const item = BRAND_COLOR_PALETTE[colKey];
                   const selected = primaryColor === colKey;
@@ -382,11 +382,10 @@ export default function MerchantSettingsFormPage() {
                       key={colKey}
                       type="button"
                       onClick={() => setPrimaryColor(colKey)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                        selected
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${selected
                           ? "border-[#0B1F3A] bg-slate-50 shadow-sm"
                           : "border-slate-200 hover:border-slate-300"
-                      }`}
+                        }`}
                     >
                       <span
                         className="w-6 h-6 rounded-full shrink-0 border border-black/10"
@@ -420,11 +419,10 @@ export default function MerchantSettingsFormPage() {
               </h2>
             </div>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                fapshiApiUser && fapshiApiKey
+              className={`px-3 py-1 rounded-full text-xs font-bold ${fapshiApiUser && fapshiApiKey
                   ? "bg-emerald-100 text-emerald-800"
                   : "bg-slate-100 text-slate-600"
-              }`}
+                }`}
             >
               {fapshiApiUser && fapshiApiKey
                 ? "🟢 Fapshi configuré"

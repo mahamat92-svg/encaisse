@@ -147,7 +147,9 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
       const parsed = JSON.parse(footerNote);
       const col = parsed.primaryColor;
       const validColor: BrandColorChoice =
-        col === "blue" || col === "orange" || col === "black" ? col : "green";
+        col === "blue" || col === "gold" || col === "orange" || col === "black"
+          ? col
+          : "green";
       return {
         fapshi: {
           apiUser:
@@ -491,7 +493,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const msColor = ms?.primary_color;
       const finalColor: BrandColorChoice =
-        msColor === "blue" || msColor === "orange" || msColor === "black"
+        msColor === "blue" ||
+        msColor === "gold" ||
+        msColor === "orange" ||
+        msColor === "black"
           ? msColor
           : footerMeta.primaryColor;
 

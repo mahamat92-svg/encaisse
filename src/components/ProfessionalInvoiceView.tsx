@@ -102,7 +102,10 @@ export function ProfessionalInvoiceView({
 
           const rawColor = data.org?.primary_color || footerMeta.primaryColor;
           const validColor: BrandColorChoice =
-            rawColor === "blue" || rawColor === "orange" || rawColor === "black"
+            rawColor === "blue" ||
+              rawColor === "gold" ||
+              rawColor === "orange" ||
+              rawColor === "black"
               ? rawColor
               : activeOrg.primaryColor || "green";
 
@@ -114,8 +117,8 @@ export function ProfessionalInvoiceView({
           setInvoice({
             publicToken: String(
               data.public_token ||
-                matchedLocalDoc?.publicToken ||
-                invoiceIdOrToken
+              matchedLocalDoc?.publicToken ||
+              invoiceIdOrToken
             ),
             number: String(data.number),
             issueDate:
@@ -134,9 +137,9 @@ export function ProfessionalInvoiceView({
               ),
               logoUrl: String(
                 data.org?.logo_url ||
-                  footerMeta.logoUrl ||
-                  activeOrg.logoUrl ||
-                  ""
+                footerMeta.logoUrl ||
+                activeOrg.logoUrl ||
+                ""
               ),
               slogan: String(
                 data.org?.slogan || footerMeta.slogan || activeOrg.slogan || ""
@@ -150,9 +153,9 @@ export function ProfessionalInvoiceView({
               ),
               rccmNiu: String(
                 data.org?.rccm_niu ||
-                  footerMeta.rccmNiu ||
-                  activeOrg.rccmNiu ||
-                  [data.org?.rccm, data.org?.niu].filter(Boolean).join(" · ")
+                footerMeta.rccmNiu ||
+                activeOrg.rccmNiu ||
+                [data.org?.rccm, data.org?.niu].filter(Boolean).join(" · ")
               ),
               primaryColor: validColor,
               mtnMomoNumber: String(
@@ -160,25 +163,25 @@ export function ProfessionalInvoiceView({
               ),
               orangeMoneyNumber: String(
                 data.org?.orange_money_number ||
-                  activeOrg.orangeMoneyNumber ||
-                  ""
+                activeOrg.orangeMoneyNumber ||
+                ""
               ),
               footerNote: footerStr,
             },
             lines: Array.isArray(data.lines)
               ? data.lines.map(
-                  (l: {
-                    label?: string;
-                    quantity?: number;
-                    unit_price?: number;
-                    total?: number;
-                  }) => ({
-                    label: String(l.label ?? "Produit"),
-                    quantity: Number(l.quantity ?? 1),
-                    unitPrice: Number(l.unit_price ?? 0),
-                    total: Number(l.total ?? 0),
-                  })
-                )
+                (l: {
+                  label?: string;
+                  quantity?: number;
+                  unit_price?: number;
+                  total?: number;
+                }) => ({
+                  label: String(l.label ?? "Produit"),
+                  quantity: Number(l.quantity ?? 1),
+                  unitPrice: Number(l.unit_price ?? 0),
+                  total: Number(l.total ?? 0),
+                })
+              )
               : [],
           });
         }
@@ -246,7 +249,7 @@ export function ProfessionalInvoiceView({
       if (!res.ok || !data?.link) {
         setErrorMsg(
           data?.error ||
-            "Impossible d'ouvrir le paiement Fapshi. Vérifiez les clés API Fapshi de l'entreprise."
+          "Impossible d'ouvrir le paiement Fapshi. Vérifiez les clés API Fapshi de l'entreprise."
         );
         return;
       }
@@ -310,6 +313,7 @@ export function ProfessionalInvoiceView({
     amount: invoice.total,
     paymentUrl,
     merchantName: invoice.merchant.name,
+    merchantCity: invoice.merchant.addressCity,
   });
 
   const waReceiptMessage = buildReceiptWhatsAppMessage({
@@ -424,11 +428,10 @@ export function ProfessionalInvoiceView({
                 </div>
                 <div className="pt-1">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${
-                      isPaid
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${isPaid
                         ? "bg-emerald-100 text-emerald-800"
                         : "bg-amber-100 text-amber-800"
-                    }`}
+                      }`}
                   >
                     {isPaid ? "✅ PAYÉE" : "⏳ EN ATTENTE DE PAIEMENT"}
                   </span>
@@ -467,7 +470,7 @@ export function ProfessionalInvoiceView({
                   >
                     <th className="py-3 px-4 rounded-tl-xl">Produit</th>
                     <th className="py-3 px-4 text-center">Quantité</th>
-                    <th className="py-3 px-4 text-right">Prix unitaire</th>
+                    <th className="py-3 px-4 text-right">Prix</th>
                     <th className="py-3 px-4 text-right rounded-tr-xl">
                       Total
                     </th>
@@ -566,13 +569,33 @@ export function ProfessionalInvoiceView({
                   onClick={handleDownloadPdf}
                   className="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-extrabold shadow-sm"
                 >
-                  📥 Télécharger PDF
+                  📥 Télécharger PDF avec logo
                 </button>
 
                 <WhatsAppShareButton
                   phone={invoice.clientPhone}
                   message={waShareMessage}
                   label="Envoyer sur WhatsApp"
+                  onDownloadPdf={handleDownloadPdf}
+                  invoiceShare={{
+                    invoiceNumber: invoice.number,
+                    issueDate: invoice.issueDate,
+                    clientName: invoice.clientName,
+                    clientPhone: invoice.clientPhone,
+                    productName:
+                      invoice.lines.map((l) => l.label).join(", ") || "Produit",
+                    quantity: invoice.lines[0]?.quantity || 1,
+                    unitPrice: invoice.lines[0]?.unitPrice || invoice.total,
+                    amount: invoice.total,
+                    paymentUrl,
+                    merchantName: invoice.merchant.name,
+                    merchantCity: invoice.merchant.addressCity,
+                    merchantPhone: invoice.merchant.phone,
+                    merchantEmail: invoice.merchant.email,
+                    merchantRccmNiu: invoice.merchant.rccmNiu,
+                    merchantLogoUrl: invoice.merchant.logoUrl,
+                    primaryColor: invoice.merchant.primaryColor,
+                  }}
                 />
               </div>
             </div>
@@ -582,3 +605,4 @@ export function ProfessionalInvoiceView({
     </div>
   );
 }
+

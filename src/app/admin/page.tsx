@@ -345,6 +345,7 @@ export default function AdminDashboardPage() {
                   productName,
                   paymentUrl: payUrl,
                   merchantName: org.name,
+                  merchantCity: org.city,
                 });
 
                 return (
@@ -375,6 +376,24 @@ export default function AdminDashboardPage() {
                         phone={doc.whatsappPhone}
                         message={waMsg}
                         label="Envoyer sur WhatsApp"
+                        invoiceShare={{
+                          invoiceNumber: doc.number,
+                          issueDate: doc.issueDate,
+                          clientName: doc.clientName,
+                          clientPhone: doc.whatsappPhone,
+                          productName,
+                          quantity: doc.lines[0]?.quantity || 1,
+                          unitPrice: doc.lines[0]?.unitPrice || doc.total,
+                          amount: doc.total,
+                          paymentUrl: payUrl,
+                          merchantName: org.name,
+                          merchantCity: org.city,
+                          merchantPhone: org.phone,
+                          merchantEmail: org.email,
+                          merchantRccmNiu: org.rccmNiu,
+                          merchantLogoUrl: org.logoUrl,
+                          primaryColor: org.primaryColor,
+                        }}
                       />
                     </div>
                   </div>

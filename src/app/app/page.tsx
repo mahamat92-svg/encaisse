@@ -211,8 +211,26 @@ export default function DashboardPage() {
                     productName: createdSale.productName,
                     paymentUrl: `${origin}/pay/${createdSale.publicToken}`,
                     merchantName: org.name,
+                    merchantCity: org.city,
                   })}
                   label="Envoyer sur WhatsApp"
+                  invoiceShare={{
+                    invoiceNumber: createdSale.invoiceNumber,
+                    clientName: createdSale.clientName,
+                    clientPhone: createdSale.clientPhone,
+                    productName: createdSale.productName,
+                    quantity: 1,
+                    unitPrice: createdSale.amount,
+                    amount: createdSale.amount,
+                    paymentUrl: `${origin}/pay/${createdSale.publicToken}`,
+                    merchantName: org.name,
+                    merchantCity: org.city,
+                    merchantPhone: org.phone,
+                    merchantEmail: org.email,
+                    merchantRccmNiu: org.rccmNiu,
+                    merchantLogoUrl: org.logoUrl,
+                    primaryColor: org.primaryColor,
+                  }}
                 />
 
                 {createdSale.publicToken ? (
@@ -461,6 +479,7 @@ export default function DashboardPage() {
                 productName,
                 paymentUrl,
                 merchantName: org.name,
+                merchantCity: org.city,
               });
 
               return (
@@ -487,7 +506,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <Link
-                      href={`/f/${doc.publicToken}`}
+                      href={`/pay/${doc.publicToken}`}
                       className="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 font-bold text-slate-700"
                     >
                       📄 Facture
@@ -496,6 +515,24 @@ export default function DashboardPage() {
                       phone={doc.whatsappPhone}
                       message={waMsg}
                       label="Envoyer sur WhatsApp"
+                      invoiceShare={{
+                        invoiceNumber: doc.number,
+                        issueDate: doc.issueDate,
+                        clientName: doc.clientName,
+                        clientPhone: doc.whatsappPhone,
+                        productName,
+                        quantity: doc.lines[0]?.quantity || 1,
+                        unitPrice: doc.lines[0]?.unitPrice || doc.total,
+                        amount: doc.total,
+                        paymentUrl,
+                        merchantName: org.name,
+                        merchantCity: org.city,
+                        merchantPhone: org.phone,
+                        merchantEmail: org.email,
+                        merchantRccmNiu: org.rccmNiu,
+                        merchantLogoUrl: org.logoUrl,
+                        primaryColor: org.primaryColor,
+                      }}
                     />
                   </div>
                 </div>

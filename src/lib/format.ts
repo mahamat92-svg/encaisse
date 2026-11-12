@@ -18,7 +18,7 @@ export type PaymentMethod =
   | "bank_transfer"
   | "other";
 export type ReminderTone = "courteous" | "firm" | "final";
-export type BrandColorChoice = "green" | "blue" | "orange" | "black";
+export type BrandColorChoice = "green" | "blue" | "gold" | "orange" | "black";
 
 export const BRAND_COLOR_PALETTE: Record<
   BrandColorChoice,
@@ -46,6 +46,14 @@ export const BRAND_COLOR_PALETTE: Record<
     textClass: "text-blue-700",
     borderClass: "border-blue-700",
     badgeBgClass: "bg-blue-50",
+  },
+  gold: {
+    label: "Or",
+    hex: "#D97706",
+    bgClass: "bg-amber-600",
+    textClass: "text-amber-700",
+    borderClass: "border-amber-600",
+    badgeBgClass: "bg-amber-50",
   },
   orange: {
     label: "Orange",
@@ -123,8 +131,13 @@ export function buildWhatsAppLink(
 }
 
 /**
- * Message officiel de partage de facture sur WhatsApp avec le nom de l'entreprise :
- * "Bonjour [Client], voici votre facture [Numéro] de [Montant] XAF de [Nom Entreprise]. Payez ici: [Lien]. Merci - [Nom Entreprise]"
+ * Message WhatsApp professionnel avec entreprise et ville :
+ * "Bonjour [Client] 👋
+ * Voici votre facture [Numéro] de [Montant] XAF
+ * 🏢 [Nom Entreprise]
+ * 📍 [Ville]
+ * 💳 Payez ici: [Lien pay]
+ * Merci pour votre confiance 🙏 - [Nom Entreprise]"
  */
 export function buildInvoiceWhatsAppMessage(params: {
   clientName: string;
@@ -133,13 +146,22 @@ export function buildInvoiceWhatsAppMessage(params: {
   productName?: string;
   paymentUrl: string;
   merchantName?: string;
+  merchantCity?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
-  const merchant = params.merchantName?.trim() || "InnovTech Encaisse";
+  const merchant = params.merchantName?.trim() || "InnovTech MHA Infinity";
+  const city = params.merchantCity?.trim() || "Cameroun";
   const url = params.paymentUrl.trim();
-  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant}`;
+  return [
+    `Bonjour ${client} 👋`,
+    `Voici votre facture ${num} de ${amt} XAF`,
+    `🏢 ${merchant}`,
+    `📍 ${city}`,
+    `💳 Payez ici: ${url}`,
+    `Merci pour votre confiance 🙏 - ${merchant}`,
+  ].join("\n");
 }
 
 /**

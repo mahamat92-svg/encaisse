@@ -156,8 +156,26 @@ export default function DocumentsPage() {
                 productName: lastCreated.productName,
                 paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
                 merchantName: org.name,
+                merchantCity: org.city,
               })}
               label="Envoyer sur WhatsApp"
+              invoiceShare={{
+                invoiceNumber: lastCreated.invoiceNumber,
+                clientName: lastCreated.clientName,
+                clientPhone: lastCreated.clientPhone,
+                productName: lastCreated.productName,
+                quantity: 1,
+                unitPrice: lastCreated.amount,
+                amount: lastCreated.amount,
+                paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
+                merchantName: org.name,
+                merchantCity: org.city,
+                merchantPhone: org.phone,
+                merchantEmail: org.email,
+                merchantRccmNiu: org.rccmNiu,
+                merchantLogoUrl: org.logoUrl,
+                primaryColor: org.primaryColor,
+              }}
             />
             {lastCreated.publicToken ? (
               <Link
@@ -433,6 +451,7 @@ export default function DocumentsPage() {
                 productName,
                 paymentUrl,
                 merchantName: org.name,
+                merchantCity: org.city,
               });
 
               return (
@@ -491,6 +510,24 @@ export default function DocumentsPage() {
                         phone={doc.whatsappPhone}
                         message={waMsg}
                         label="Envoyer sur WhatsApp"
+                        invoiceShare={{
+                          invoiceNumber: doc.number,
+                          issueDate: doc.issueDate,
+                          clientName: doc.clientName,
+                          clientPhone: doc.whatsappPhone,
+                          productName,
+                          quantity: doc.lines[0]?.quantity || 1,
+                          unitPrice: doc.lines[0]?.unitPrice || doc.total,
+                          amount: doc.total,
+                          paymentUrl,
+                          merchantName: org.name,
+                          merchantCity: org.city,
+                          merchantPhone: org.phone,
+                          merchantEmail: org.email,
+                          merchantRccmNiu: org.rccmNiu,
+                          merchantLogoUrl: org.logoUrl,
+                          primaryColor: org.primaryColor,
+                        }}
                       />
                     </div>
                   </div>

@@ -13,7 +13,7 @@ create table if not exists public.merchant_settings (
   email           text,
   rccm_niu        text,
   slogan          text,
-  primary_color   text not null default 'green' check (primary_color in ('green', 'blue', 'orange', 'black')),
+  primary_color   text not null default 'green' check (primary_color in ('green', 'blue', 'gold', 'orange', 'black')),
   updated_at      timestamptz not null default now()
 );
 
@@ -119,3 +119,4 @@ as $$
 $$;
 
 grant execute on function public.get_public_document(text) to anon, authenticated;
+
