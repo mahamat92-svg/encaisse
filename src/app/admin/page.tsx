@@ -143,6 +143,12 @@ export default function AdminDashboardPage() {
             >
               /clients
             </Link>
+            <Link
+              href="/admin/settings"
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 text-[#0B1F3A] hover:bg-emerald-400 text-xs font-extrabold"
+            >
+              🏢 /admin/settings
+            </Link>
           </div>
         </div>
 
@@ -338,6 +344,7 @@ export default function AdminDashboardPage() {
                   amount: doc.total,
                   productName,
                   paymentUrl: payUrl,
+                  merchantName: org.name,
                 });
 
                 return (

@@ -110,3 +110,4 @@ as $$
 $$;
 
 grant execute on function public.get_public_document(text) to anon, authenticated;
+

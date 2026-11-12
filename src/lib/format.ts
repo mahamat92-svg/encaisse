@@ -18,6 +18,52 @@ export type PaymentMethod =
   | "bank_transfer"
   | "other";
 export type ReminderTone = "courteous" | "firm" | "final";
+export type BrandColorChoice = "green" | "blue" | "orange" | "black";
+
+export const BRAND_COLOR_PALETTE: Record<
+  BrandColorChoice,
+  {
+    label: string;
+    hex: string;
+    bgClass: string;
+    textClass: string;
+    borderClass: string;
+    badgeBgClass: string;
+  }
+> = {
+  green: {
+    label: "Vert",
+    hex: "#059669",
+    bgClass: "bg-emerald-600",
+    textClass: "text-emerald-700",
+    borderClass: "border-emerald-600",
+    badgeBgClass: "bg-emerald-50",
+  },
+  blue: {
+    label: "Bleu",
+    hex: "#1D4ED8",
+    bgClass: "bg-blue-700",
+    textClass: "text-blue-700",
+    borderClass: "border-blue-700",
+    badgeBgClass: "bg-blue-50",
+  },
+  orange: {
+    label: "Orange",
+    hex: "#EA580C",
+    bgClass: "bg-orange-600",
+    textClass: "text-orange-700",
+    borderClass: "border-orange-600",
+    badgeBgClass: "bg-orange-50",
+  },
+  black: {
+    label: "Noir",
+    hex: "#0F172A",
+    bgClass: "bg-slate-900",
+    textClass: "text-slate-900",
+    borderClass: "border-slate-900",
+    badgeBgClass: "bg-slate-100",
+  },
+};
 
 /** Formatte uniquement le nombre entier avec espaces : 125 000 */
 export function formatAmountNumber(amount: number | null | undefined): string {
@@ -26,7 +72,10 @@ export function formatAmountNumber(amount: number | null | undefined): string {
 }
 
 /** Formatte un montant entier en Francs CFA : 125 000 XAF */
-export function formatCFA(amount: number | null | undefined, currency = "XAF"): string {
+export function formatCFA(
+  amount: number | null | undefined,
+  currency = "XAF"
+): string {
   return `${formatAmountNumber(amount)} ${currency}`;
 }
 
@@ -74,26 +123,27 @@ export function buildWhatsAppLink(
 }
 
 /**
- * FEATURE 1 & 2 : Message officiel de partage de facture sur WhatsApp
- * "Bonjour [Nom du client], voici votre facture [Numéro facture] de [Montant] XAF pour [Nom du produit]. Payez en ligne ici : [Lien de paiement Fapshi / Encaisse]. Merci - InnovTech Encaisse"
+ * Message officiel de partage de facture sur WhatsApp avec le nom de l'entreprise :
+ * "Bonjour [Client], voici votre facture [Numéro] de [Montant] XAF de [Nom Entreprise]. Payez ici: [Lien]. Merci - [Nom Entreprise]"
  */
 export function buildInvoiceWhatsAppMessage(params: {
   clientName: string;
   invoiceNumber: string;
   amount: number;
-  productName: string;
+  productName?: string;
   paymentUrl: string;
+  merchantName?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
-  const prod = params.productName.trim() || "votre commande";
+  const merchant = params.merchantName?.trim() || "InnovTech Encaisse";
   const url = params.paymentUrl.trim();
-  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF pour ${prod}. Payez en ligne ici : ${url}. Merci - InnovTech Encaisse`;
+  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant}`;
 }
 
 /**
- * FEATURE 3 : Message officiel de confirmation de paiement / reçu sur WhatsApp
+ * Message officiel de confirmation de paiement / reçu sur WhatsApp :
  * "Merci [Nom], nous avons bien reçu votre paiement de [Montant] XAF. Voici votre reçu : [Lien reçu]"
  */
 export function buildReceiptWhatsAppMessage(params: {

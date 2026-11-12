@@ -155,6 +155,7 @@ export default function DocumentsPage() {
                 amount: lastCreated.amount,
                 productName: lastCreated.productName,
                 paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
+                merchantName: org.name,
               })}
               label="Envoyer sur WhatsApp"
             />
@@ -431,6 +432,7 @@ export default function DocumentsPage() {
                 amount: doc.total,
                 productName,
                 paymentUrl,
+                merchantName: org.name,
               });
 
               return (
@@ -480,10 +482,10 @@ export default function DocumentsPage() {
 
                     <div className="flex flex-wrap gap-2">
                       <Link
-                        href={`/f/${doc.publicToken}`}
+                        href={`/invoices/${doc.publicToken}`}
                         className="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
                       >
-                        📄 Détail / PDF
+                        📄 Voir / PDF
                       </Link>
                       <WhatsAppShareButton
                         phone={doc.whatsappPhone}

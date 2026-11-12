@@ -7,7 +7,12 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import type { Locale, OrgMode, PaymentMethod } from "@/lib/format";
+import type {
+  BrandColorChoice,
+  Locale,
+  OrgMode,
+  PaymentMethod,
+} from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   DEMO_ORGS,
@@ -30,6 +35,11 @@ export interface ActiveOrgData {
   mode: OrgMode;
   city: string;
   phone: string;
+  email: string;
+  logoUrl: string;
+  slogan: string;
+  primaryColor: BrandColorChoice;
+  rccmNiu: string;
   niu: string;
   rccm: string;
   vatRegistered: boolean;
@@ -113,23 +123,50 @@ interface AppState {
   ) => Promise<{ ok: boolean; error?: string; receiptNumber?: string }>;
 }
 
-function parseFapshiFromFooter(footerNote: string | null | undefined): FapshiConfig {
-  if (!footerNote) {
-    return { apiUser: "", apiKey: "", environment: "live" };
-  }
+interface FooterMeta {
+  fapshi: FapshiConfig;
+  email: string;
+  slogan: string;
+  primaryColor: BrandColorChoice;
+  rccmNiu: string;
+  logoUrl: string;
+}
+
+function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
+  const fallback: FooterMeta = {
+    fapshi: { apiUser: "", apiKey: "", environment: "live" },
+    email: "",
+    slogan: "",
+    primaryColor: "green",
+    rccmNiu: "",
+    logoUrl: "",
+  };
+  if (!footerNote) return fallback;
   try {
     if (footerNote.startsWith("{")) {
       const parsed = JSON.parse(footerNote);
+      const col = parsed.primaryColor;
+      const validColor: BrandColorChoice =
+        col === "blue" || col === "orange" || col === "black" ? col : "green";
       return {
-        apiUser: typeof parsed.fapshiApiUser === "string" ? parsed.fapshiApiUser : "",
-        apiKey: typeof parsed.fapshiApiKey === "string" ? parsed.fapshiApiKey : "",
-        environment: parsed.fapshiEnv === "sandbox" ? "sandbox" : "live",
+        fapshi: {
+          apiUser:
+            typeof parsed.fapshiApiUser === "string" ? parsed.fapshiApiUser : "",
+          apiKey:
+            typeof parsed.fapshiApiKey === "string" ? parsed.fapshiApiKey : "",
+          environment: parsed.fapshiEnv === "sandbox" ? "sandbox" : "live",
+        },
+        email: typeof parsed.email === "string" ? parsed.email : "",
+        slogan: typeof parsed.slogan === "string" ? parsed.slogan : "",
+        primaryColor: validColor,
+        rccmNiu: typeof parsed.rccmNiu === "string" ? parsed.rccmNiu : "",
+        logoUrl: typeof parsed.logoUrl === "string" ? parsed.logoUrl : "",
       };
     }
   } catch {
     // Ignore parse error
   }
-  return { apiUser: "", apiKey: "", environment: "live" };
+  return fallback;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -267,7 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dbOrg.mode === "etablissement" ? "etablissement" : "commerce";
       setMode(activeMode);
 
-      // 3. Charger uniquement les vraies données depuis Supabase
+      // 3. Charger uniquement les vraies données depuis Supabase (y compris merchant_settings)
       const [
         rawClientsRes,
         balancesRes,
@@ -276,6 +313,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         linesRes,
         paysRes,
         remRes,
+        merchantRes,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -306,6 +344,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .eq("org_id", dbOrg.id)
           .order("created_at", { ascending: false }),
         supabase.from("v_reminders_due").select("*").eq("org_id", dbOrg.id),
+        supabase
+          .from("merchant_settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
 
       const balanceByClient = new Map<
@@ -434,19 +477,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         0
       );
 
+      const footerMeta = parseFooterMeta(dbOrg.footer_note);
+      const ms = merchantRes?.data as {
+        company_name?: string;
+        logo_url?: string;
+        whatsapp_phone?: string;
+        address_city?: string;
+        email?: string;
+        rccm_niu?: string;
+        slogan?: string;
+        primary_color?: string;
+      } | null;
+
+      const msColor = ms?.primary_color;
+      const finalColor: BrandColorChoice =
+        msColor === "blue" || msColor === "orange" || msColor === "black"
+          ? msColor
+          : footerMeta.primaryColor;
+
       setLiveOrg({
         id: dbOrg.id,
-        name: dbOrg.name,
+        name: ms?.company_name?.trim() || dbOrg.name,
         mode: activeMode,
-        city: dbOrg.city || "",
-        phone: dbOrg.phone || "",
+        city: ms?.address_city?.trim() || dbOrg.city || "",
+        phone: ms?.whatsapp_phone?.trim() || dbOrg.phone || "",
+        email: ms?.email?.trim() || footerMeta.email || user.email || "",
+        logoUrl: ms?.logo_url || dbOrg.logo_url || footerMeta.logoUrl || "",
+        slogan: ms?.slogan?.trim() || footerMeta.slogan || "",
+        primaryColor: finalColor,
+        rccmNiu:
+          ms?.rccm_niu?.trim() ||
+          footerMeta.rccmNiu ||
+          [dbOrg.rccm, dbOrg.niu].filter(Boolean).join(" / "),
         niu: dbOrg.niu || "",
         rccm: dbOrg.rccm || "",
         vatRegistered: Boolean(dbOrg.vat_registered),
         vatRateBp: Number(dbOrg.vat_rate_bp ?? 1925),
         mtnMomoNumber: dbOrg.mtn_momo_number || "",
         orangeMoneyNumber: dbOrg.orange_money_number || "",
-        fapshi: parseFapshiFromFooter(dbOrg.footer_note),
+        fapshi: footerMeta.fapshi,
         planId: "free",
         trialDaysLeft: daysLeft,
         clients: mappedClients,
@@ -490,6 +559,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Organisation vide par défaut (aucune donnée fictive)
   const emptyOrg: ActiveOrgData = {
     ...DEMO_ORGS[mode],
+    email: "",
+    logoUrl: "",
+    slogan: "",
+    primaryColor: "green",
+    rccmNiu: "",
     fapshi: { apiUser: "", apiKey: "", environment: "live" },
     isLiveDb: false,
   };

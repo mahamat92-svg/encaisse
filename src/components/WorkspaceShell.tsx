@@ -30,7 +30,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       icon: "💬",
       badge: org.reminders.length > 0 ? org.reminders.length : undefined,
     },
-    { href: "/app/parametres", label: "Paramètres & Fapshi", icon: "⚙️" },
+    { href: "/admin/settings", label: "Paramètres de mon Entreprise", icon: "🏢" },
   ];
 
   const mobileBottomItems = [
@@ -84,7 +84,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
               (item.href === "/dashboard" && pathname === "/app") ||
               (item.href === "/products" && pathname === "/app/catalogue") ||
               (item.href === "/invoices" && pathname === "/app/documents") ||
-              (item.href === "/clients" && pathname === "/app/clients");
+              (item.href === "/clients" && pathname === "/app/clients") ||
+              (item.href === "/admin/settings" &&
+                pathname === "/app/parametres");
             return (
               <Link
                 key={item.href}

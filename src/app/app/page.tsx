@@ -210,6 +210,7 @@ export default function DashboardPage() {
                     amount: createdSale.amount,
                     productName: createdSale.productName,
                     paymentUrl: `${origin}/pay/${createdSale.publicToken}`,
+                    merchantName: org.name,
                   })}
                   label="Envoyer sur WhatsApp"
                 />
@@ -459,6 +460,7 @@ export default function DashboardPage() {
                 amount: doc.total,
                 productName,
                 paymentUrl,
+                merchantName: org.name,
               });
 
               return (
