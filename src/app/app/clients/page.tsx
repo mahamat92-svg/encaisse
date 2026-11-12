@@ -2,10 +2,11 @@
 
 import React, { useState } from "react";
 import { useAppState } from "@/components/AppContext";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, getBusinessTypeLabels } from "@/lib/format";
 
 export default function ClientsPage() {
   const { mode, org, addClientRecord, deleteClientRecord } = useAppState();
+  const labels = getBusinessTypeLabels(org.businessType);
 
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -61,10 +62,10 @@ export default function ClientsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0B1F3A]">
-            👥 Clients
+            👥 {labels.clients}
           </h1>
           <p className="text-xs text-slate-500">
-            Répertoire réel de vos clients enregistrés dans Supabase ({org.clients.length} client(s)).
+            Répertoire réel de vos {labels.clients.toLowerCase()} enregistrés dans Supabase ({org.clients.length} élément(s)).
           </p>
         </div>
 
@@ -73,7 +74,7 @@ export default function ClientsPage() {
           onClick={() => setShowAdd(!showAdd)}
           className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm"
         >
-          {showAdd ? "Fermer" : "+ Ajouter un client"}
+          {showAdd ? "Fermer" : `+ Ajouter (${labels.clientSingular})`}
         </button>
       </div>
 

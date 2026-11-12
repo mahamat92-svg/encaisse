@@ -2,10 +2,11 @@
 
 import React, { useState } from "react";
 import { useAppState } from "@/components/AppContext";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, getBusinessTypeLabels } from "@/lib/format";
 
 export default function CatalogPage() {
   const { mode, org, addCatalogRecord, deleteCatalogRecord } = useAppState();
+  const labels = getBusinessTypeLabels(org.businessType);
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -54,10 +55,10 @@ export default function CatalogPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0B1F3A]">
-            📦 Produits & Catalogue
+            📦 {labels.products}
           </h1>
           <p className="text-xs text-slate-500">
-            Gérez vos produits et tarifs réels enregistrés dans Supabase ({org.catalog.length} produit(s)).
+            Gérez vos {labels.products.toLowerCase()} et tarifs réels enregistrés dans Supabase ({org.catalog.length} élément(s)).
           </p>
         </div>
 
@@ -66,7 +67,7 @@ export default function CatalogPage() {
           onClick={() => setShowForm(!showForm)}
           className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm"
         >
-          {showForm ? "Fermer" : "+ Ajouter un produit"}
+          {showForm ? "Fermer" : `+ Ajouter (${labels.productSingular})`}
         </button>
       </div>
 

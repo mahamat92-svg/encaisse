@@ -5,6 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppState } from "./AppContext";
 import { getLabels } from "@/lib/i18n";
+import {
+  OFFICIAL_WHATSAPP_ACCOUNT_URL,
+  OFFICIAL_WHATSAPP_DISPLAY,
+  OFFICIAL_WHATSAPP_URL,
+} from "@/lib/format";
+import { WhatsAppIcon } from "./WhatsAppButton";
 
 export function BrandLogo({ light = false }: { light?: boolean }) {
   return (
@@ -13,7 +19,7 @@ export function BrandLogo({ light = false }: { light?: boolean }) {
         <span className="text-white font-extrabold text-lg tracking-tight">i</span>
         <span
           className="w-2 h-2 rounded-full bg-[#F5A524] absolute top-1.5 right-1.5"
-          title="Message vers Paiement"
+          title="InnovTech MHA Infinity"
         />
       </div>
       <div className="flex flex-col">
@@ -22,14 +28,14 @@ export function BrandLogo({ light = false }: { light?: boolean }) {
             light ? "text-white" : "text-[#0B1F3A]"
           }`}
         >
-          InnovTech <span className="text-emerald-500">Encaisse</span>
+          InnovTech <span className="text-emerald-500">MHA Infinity</span>
         </span>
         <span
           className={`text-[10px] font-medium tracking-wider uppercase mt-0.5 ${
             light ? "text-slate-300" : "text-slate-500"
           }`}
         >
-          SaaS FinTech & IA · Afrique
+          SaaS Multi-Services · Afrique
         </span>
       </div>
     </Link>
@@ -43,14 +49,14 @@ export function PublicNavbar() {
 
   const links = [
     { href: "/", label: t.nav.home },
-    { href: "/services", label: t.nav.services },
+    { href: "/services", label: "Services" },
     { href: "/tarifs", label: t.nav.pricing },
     { href: "/assistance", label: t.nav.help },
   ];
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 no-print">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         <BrandLogo />
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -73,21 +79,31 @@ export function PublicNavbar() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* 1. HEADER : Bouton vert WhatsApp */}
+          <a
+            href={OFFICIAL_WHATSAPP_ACCOUNT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-[#25D366] hover:bg-[#1EBE5D] text-white shadow-sm transition-colors"
+          >
+            <WhatsAppIcon className="w-4 h-4 shrink-0" />
+            <span>WhatsApp</span>
+          </a>
+
           <button
             type="button"
             onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
-            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            className="hidden sm:inline-flex px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
             title="Changer de langue / Switch language"
           >
-            {locale === "fr" ? "🇫🇷 FR · EN" : "🇬🇧 EN · FR"}
+            {locale === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
           </button>
 
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-extrabold bg-[#0B1F3A] hover:bg-[#132D54] text-white shadow-sm transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-[#0B1F3A] hover:bg-[#132D54] text-white shadow-sm transition-colors"
           >
             <span>Se connecter</span>
-            <span aria-hidden>→</span>
           </Link>
         </div>
       </div>
@@ -113,61 +129,113 @@ export function PublicNavbar() {
 }
 
 export function PublicFooter() {
-  const { locale } = useAppState();
   return (
     <footer className="bg-[#0B1F3A] text-slate-300 border-t border-slate-800 no-print">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-2 space-y-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div className="md:col-span-5 space-y-3">
           <BrandLogo light />
           <p className="text-sm text-slate-300 max-w-md leading-relaxed">
-            {locale === "fr"
-              ? "Plateforme SaaS de facturation rapide, suivi des créances, encaissements Fapshi / Mobile Money et relances WhatsApp."
-              : "Fast invoicing SaaS, receivables tracking, Fapshi / Mobile Money collections and WhatsApp reminders."}
+            Une seule plateforme, tous vos métiers : Encaisse Boutique, École, Clinique, Immobilier, Artisan et ONG — Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp.
           </p>
           <p className="text-xs text-slate-400">
             🇨🇲 Conçu pour le Cameroun et l&apos;Afrique (XAF) · Sécurité RLS stricte.
           </p>
         </div>
 
-        <div>
+        <div className="md:col-span-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-white mb-3">
-            {locale === "fr" ? "Navigation" : "Links"}
+            Navigation & Services
           </h3>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/services" className="hover:text-white">
-                {locale === "fr" ? "Fonctionnalités" : "Features"}
+              <Link href="/services" className="hover:text-white font-semibold text-emerald-400">
+                Nos 6 Services Métiers →
               </Link>
             </li>
             <li>
               <Link href="/tarifs" className="hover:text-white">
-                {locale === "fr" ? "Tarifs en XAF" : "Pricing in XAF"}
+                Tarifs en XAF
               </Link>
             </li>
             <li>
               <Link href="/assistance" className="hover:text-white">
-                {locale === "fr" ? "Centre d'assistance" : "Help Center"}
+                Centre d&apos;assistance
+              </Link>
+            </li>
+            <li>
+              <Link href="/login" className="hover:text-white">
+                Connexion Admin (/login)
               </Link>
             </li>
           </ul>
         </div>
 
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white mb-3">
-            Administration
+        {/* 3. FOOTER : Grande section "Contactez-nous" */}
+        <div className="md:col-span-4 bg-[#132D54] border border-slate-700/80 rounded-2xl p-5 space-y-3">
+          <h3 className="text-base font-extrabold text-white">
+            📞 Contactez-nous
           </h3>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-bold">
-                Se connecter (Admin) →
-              </Link>
+          <ul className="space-y-2 text-xs sm:text-sm text-slate-200">
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-400 font-bold">WhatsApp :</span>
+              <a
+                href={OFFICIAL_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-extrabold text-white hover:underline"
+              >
+                {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-400 font-bold">Email :</span>
+              <a
+                href="mailto:contact@innovtechmha.com"
+                className="hover:underline text-white"
+              >
+                contact@innovtechmha.com
+              </a>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-400 font-bold">Ville :</span>
+              <span className="text-white">Ngaoundéré, Cameroun</span>
             </li>
           </ul>
+          <div className="pt-2">
+            <a
+              href={OFFICIAL_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white text-xs sm:text-sm font-extrabold shadow-md transition-colors"
+            >
+              <WhatsAppIcon className="w-4 h-4 shrink-0" />
+              <span>Discuter sur WhatsApp</span>
+            </a>
+          </div>
         </div>
       </div>
+
       <div className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-400 px-4">
-        © {new Date().getFullYear()} InnovTech AI — InnovTech Encaisse. Tous droits réservés.
+        © {new Date().getFullYear()} InnovTech MHA Infinity — Tous droits réservés · WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
       </div>
     </footer>
+  );
+}
+
+/**
+ * 4. FLOATING BUTTON : Bouton flottant WhatsApp vert en bas à droite sur TOUTES les pages, visible sur mobile
+ */
+export function FloatingWhatsAppButton() {
+  return (
+    <a
+      href={OFFICIAL_WHATSAPP_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`WhatsApp ${OFFICIAL_WHATSAPP_DISPLAY}`}
+      className="fixed bottom-18 lg:bottom-6 right-4 sm:right-6 z-50 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs sm:text-sm shadow-xl border-2 border-white transition-transform hover:scale-105 no-print"
+    >
+      <WhatsAppIcon className="w-5 h-5 shrink-0" />
+      <span>WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}</span>
+    </a>
   );
 }

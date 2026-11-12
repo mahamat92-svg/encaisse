@@ -7,11 +7,13 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import type {
-  BrandColorChoice,
-  Locale,
-  OrgMode,
-  PaymentMethod,
+import {
+  OFFICIAL_WHATSAPP_DIGITS,
+  type BrandColorChoice,
+  type BusinessType,
+  type Locale,
+  type OrgMode,
+  type PaymentMethod,
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -33,6 +35,7 @@ export interface ActiveOrgData {
   id: string;
   name: string;
   mode: OrgMode;
+  businessType: BusinessType;
   city: string;
   phone: string;
   email: string;
@@ -130,6 +133,18 @@ interface FooterMeta {
   primaryColor: BrandColorChoice;
   rccmNiu: string;
   logoUrl: string;
+  businessType: BusinessType;
+}
+
+function isValidBusinessType(v: unknown): v is BusinessType {
+  return (
+    v === "boutique" ||
+    v === "ecole" ||
+    v === "clinique" ||
+    v === "immobilier" ||
+    v === "artisan" ||
+    v === "ong"
+  );
 }
 
 function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
@@ -140,6 +155,7 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
     primaryColor: "green",
     rccmNiu: "",
     logoUrl: "",
+    businessType: "boutique",
   };
   if (!footerNote) return fallback;
   try {
@@ -163,6 +179,9 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
         primaryColor: validColor,
         rccmNiu: typeof parsed.rccmNiu === "string" ? parsed.rccmNiu : "",
         logoUrl: typeof parsed.logoUrl === "string" ? parsed.logoUrl : "",
+        businessType: isValidBusinessType(parsed.businessType)
+          ? parsed.businessType
+          : "boutique",
       };
     }
   } catch {
@@ -489,6 +508,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         rccm_niu?: string;
         slogan?: string;
         primary_color?: string;
+        business_type?: string;
       } | null;
 
       const msColor = ms?.primary_color;
@@ -500,12 +520,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? msColor
           : footerMeta.primaryColor;
 
+      const finalBusinessType: BusinessType = isValidBusinessType(
+        ms?.business_type
+      )
+        ? ms.business_type
+        : isValidBusinessType(footerMeta.businessType) &&
+            footerMeta.businessType !== "boutique"
+          ? footerMeta.businessType
+          : isValidBusinessType(user.user_metadata?.business_type)
+            ? user.user_metadata.business_type
+            : activeMode === "etablissement"
+              ? "ecole"
+              : "boutique";
+
       setLiveOrg({
         id: dbOrg.id,
         name: ms?.company_name?.trim() || dbOrg.name,
-        mode: activeMode,
+        mode: finalBusinessType === "ecole" ? "etablissement" : activeMode,
+        businessType: finalBusinessType,
         city: ms?.address_city?.trim() || dbOrg.city || "",
-        phone: ms?.whatsapp_phone?.trim() || dbOrg.phone || "",
+        phone:
+          ms?.whatsapp_phone?.trim() ||
+          dbOrg.phone ||
+          OFFICIAL_WHATSAPP_DIGITS,
         email: ms?.email?.trim() || footerMeta.email || user.email || "",
         logoUrl: ms?.logo_url || dbOrg.logo_url || footerMeta.logoUrl || "",
         slogan: ms?.slogan?.trim() || footerMeta.slogan || "",
@@ -564,6 +601,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Organisation vide par défaut (aucune donnée fictive)
   const emptyOrg: ActiveOrgData = {
     ...DEMO_ORGS[mode],
+    businessType: mode === "etablissement" ? "ecole" : "boutique",
+    phone: OFFICIAL_WHATSAPP_DIGITS,
     email: "",
     logoUrl: "",
     slogan: "",

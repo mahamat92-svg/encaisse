@@ -8,6 +8,7 @@ import {
   buildInvoiceWhatsAppMessage,
   formatCFA,
   formatDate,
+  getBusinessTypeLabels,
 } from "@/lib/format";
 import { WhatsAppShareButton } from "@/components/WhatsAppButton";
 
@@ -18,6 +19,7 @@ export default function AdminDashboardPage() {
     deleteCatalogRecord,
     createDocumentRecord,
   } = useAppState();
+  const labels = getBusinessTypeLabels(org.businessType);
 
   // Formulaire rapide Créer un produit
   const [prodName, setProdName] = useState("");
@@ -193,25 +195,25 @@ export default function AdminDashboardPage() {
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs font-bold uppercase text-slate-500">
-              Tous les clients
+              {labels.clients}
             </div>
             <div className="text-2xl font-extrabold text-[#0B1F3A] mt-2">
               {org.clients.length}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Base clients isolée RLS
+              Base {labels.clients.toLowerCase()} isolée RLS
             </div>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <div className="text-xs font-bold uppercase text-slate-500">
-              Produits & Stock
+              {labels.products}
             </div>
             <div className="text-2xl font-extrabold text-[#0B1F3A] mt-2">
               {org.catalog.length}
             </div>
             <div className="text-xs text-slate-500 mt-1">
-              Articles actifs au catalogue
+              Actifs au catalogue
             </div>
           </div>
         </div>
@@ -407,11 +409,11 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
             <h2 className="font-extrabold text-base text-[#0B1F3A]">
-              📦 Stock / Produits ({org.catalog.length})
+              📦 {labels.products} ({org.catalog.length})
             </h2>
             {org.catalog.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                Aucun produit dans le catalogue.
+                Aucun élément dans {labels.products.toLowerCase()}.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 text-xs">
@@ -444,11 +446,11 @@ export default function AdminDashboardPage() {
 
           <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
             <h2 className="font-extrabold text-base text-[#0B1F3A]">
-              👥 Tous les clients ({org.clients.length})
+              👥 {labels.clients} ({org.clients.length})
             </h2>
             {org.clients.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
-                Aucun client enregistré.
+                Aucun élément enregistré dans {labels.clients.toLowerCase()}.
               </div>
             ) : (
               <div className="divide-y divide-slate-100 text-xs">

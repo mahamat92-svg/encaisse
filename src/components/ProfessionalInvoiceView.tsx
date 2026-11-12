@@ -9,6 +9,8 @@ import {
   buildReceiptWhatsAppMessage,
   formatCFA,
   formatDate,
+  OFFICIAL_WHATSAPP_DISPLAY,
+  OFFICIAL_WHATSAPP_URL,
   type BrandColorChoice,
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -597,6 +599,18 @@ export function ProfessionalInvoiceView({
                     primaryColor: invoice.merchant.primaryColor,
                   }}
                 />
+              </div>
+
+              {/* Bas de page /pay/[invoice_id] : Besoin d'aide ? WhatsApp: +235 66 26 85 03 */}
+              <div className="pt-4 border-t border-slate-100 text-center">
+                <a
+                  href={OFFICIAL_WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-xs sm:text-sm font-extrabold text-[#128C7E] transition-colors"
+                >
+                  <span>💬 Besoin d&apos;aide ? WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}</span>
+                </a>
               </div>
             </div>
           </div>

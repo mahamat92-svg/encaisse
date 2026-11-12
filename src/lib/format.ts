@@ -20,6 +20,111 @@ export type PaymentMethod =
 export type ReminderTone = "courteous" | "firm" | "final";
 export type BrandColorChoice = "green" | "blue" | "gold" | "orange" | "black";
 
+export type BusinessType =
+  | "boutique"
+  | "ecole"
+  | "clinique"
+  | "immobilier"
+  | "artisan"
+  | "ong";
+
+export const OFFICIAL_WHATSAPP_DISPLAY = "+235 66 26 85 03";
+export const OFFICIAL_WHATSAPP_DIGITS = "23566268503";
+export const OFFICIAL_WHATSAPP_URL = "https://wa.me/23566268503";
+export const OFFICIAL_WHATSAPP_ACCOUNT_URL =
+  "https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20un%20compte";
+
+export interface BusinessServiceDefinition {
+  id: BusinessType;
+  icon: string;
+  title: string;
+  features: string;
+  bullets: string[];
+}
+
+export const BUSINESS_SERVICES: BusinessServiceDefinition[] = [
+  {
+    id: "boutique",
+    icon: "🛒",
+    title: "Encaisse Boutique",
+    features: "Produits, Stock, Factures",
+    bullets: ["Produits", "Stock", "Factures"],
+  },
+  {
+    id: "ecole",
+    icon: "🎓",
+    title: "École",
+    features: "Élèves, Classes, Frais scolaires, Notes",
+    bullets: ["Élèves", "Classes", "Frais scolaires", "Notes"],
+  },
+  {
+    id: "clinique",
+    icon: "🏥",
+    title: "Clinique",
+    features: "Patients, Consultations, Ordonnances",
+    bullets: ["Patients", "Consultations", "Ordonnances"],
+  },
+  {
+    id: "immobilier",
+    icon: "🏠",
+    title: "Immobilier",
+    features: "Maisons, Locataires, Loyers",
+    bullets: ["Maisons", "Locataires", "Loyers"],
+  },
+  {
+    id: "artisan",
+    icon: "✂️",
+    title: "Artisan",
+    features: "Commandes, Clients, Rendez-vous",
+    bullets: ["Commandes", "Clients", "Rendez-vous"],
+  },
+  {
+    id: "ong",
+    icon: "🤝",
+    title: "ONG",
+    features: "Membres, Cotisations, Projets",
+    bullets: ["Membres", "Cotisations", "Projets"],
+  },
+];
+
+export function getBusinessTypeLabels(businessType?: BusinessType | string): {
+  productsLabel: string;
+  productSingular: string;
+  clientsLabel: string;
+  clientSingular: string;
+} {
+  if (businessType === "ecole") {
+    return {
+      productsLabel: "Frais scolaires",
+      productSingular: "Frais scolaire",
+      clientsLabel: "Élèves",
+      clientSingular: "Élève",
+    };
+  }
+  if (businessType === "clinique") {
+    return {
+      productsLabel: "Soins",
+      productSingular: "Soin",
+      clientsLabel: "Patients",
+      clientSingular: "Patient",
+    };
+  }
+  if (businessType === "immobilier") {
+    return {
+      productsLabel: "Maisons",
+      productSingular: "Maison",
+      clientsLabel: "Locataires",
+      clientSingular: "Locataire",
+    };
+  }
+  return {
+    productsLabel: "Produits",
+    productSingular: "Produit",
+    clientsLabel: "Clients",
+    clientSingular: "Client",
+  };
+}
+
 export const BRAND_COLOR_PALETTE: Record<
   BrandColorChoice,
   {
@@ -99,7 +204,7 @@ export function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-/** Nettoie un numéro de téléphone camerounais/international pour wa.me (ex: 237XXXXXXXXX) */
+/** Nettoie un numéro de téléphone camerounais/international pour wa.me (ex: 23566268503 ou 237XXXXXXXXX) */
 export function normalizeWhatsAppPhone(
   phone: string | null | undefined,
   defaultCountryCode = "237"
@@ -108,6 +213,9 @@ export function normalizeWhatsAppPhone(
   const digits = phone.replace(/[^\d]/g, "");
   if (!digits) return "";
   if (digits.startsWith("00")) return digits.slice(2);
+  if (digits.length === 8 && digits.startsWith("6")) {
+    return `235${digits}`;
+  }
   if (digits.length === 9 && (digits.startsWith("6") || digits.startsWith("2"))) {
     return `${defaultCountryCode}${digits}`;
   }
@@ -116,7 +224,7 @@ export function normalizeWhatsAppPhone(
 
 /**
  * Construit un lien WhatsApp wa.me avec encodeURIComponent :
- * - Si un numéro existe : https://wa.me/237XXXXXXXXX?text=...
+ * - Si un numéro existe : https://wa.me/23566268503?text=...
  * - Sinon : https://wa.me/?text=...
  */
 export function buildWhatsAppLink(
@@ -131,11 +239,12 @@ export function buildWhatsAppLink(
 }
 
 /**
- * Message WhatsApp professionnel avec entreprise et ville :
+ * Message WhatsApp professionnel avec entreprise, ville et numéro WhatsApp marchand :
  * "Bonjour [Client] 👋
  * Voici votre facture [Numéro] de [Montant] XAF
  * 🏢 [Nom Entreprise]
  * 📍 [Ville]
+ * 📞 WhatsApp: [Numéro WhatsApp]
  * 💳 Payez ici: [Lien pay]
  * Merci pour votre confiance 🙏 - [Nom Entreprise]"
  */
@@ -147,18 +256,21 @@ export function buildInvoiceWhatsAppMessage(params: {
   paymentUrl: string;
   merchantName?: string;
   merchantCity?: string;
+  merchantPhone?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
   const merchant = params.merchantName?.trim() || "InnovTech MHA Infinity";
-  const city = params.merchantCity?.trim() || "Cameroun";
+  const city = params.merchantCity?.trim() || "Ngaoundéré, Cameroun";
+  const waPhone = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
   const url = params.paymentUrl.trim();
   return [
     `Bonjour ${client} 👋`,
     `Voici votre facture ${num} de ${amt} XAF`,
     `🏢 ${merchant}`,
     `📍 ${city}`,
+    `📞 WhatsApp: ${waPhone}`,
     `💳 Payez ici: ${url}`,
     `Merci pour votre confiance 🙏 - ${merchant}`,
   ].join("\n");
@@ -172,11 +284,13 @@ export function buildReceiptWhatsAppMessage(params: {
   clientName: string;
   amount: number;
   receiptUrl: string;
+  merchantPhone?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const amt = formatAmountNumber(params.amount);
   const url = params.receiptUrl.trim();
-  return `Merci ${client}, nous avons bien reçu votre paiement de ${amt} XAF. Voici votre reçu : ${url}`;
+  const waPhone = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
+  return `Merci ${client}, nous avons bien reçu votre paiement de ${amt} XAF. Voici votre reçu : ${url} (WhatsApp: ${waPhone})`;
 }
 
 /** Calcul d'une ligne de facture selon les règles métier (TVA 19,25 % = 1925 bp) */

@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import { useAppState } from "@/components/AppContext";
 import {
   BRAND_COLOR_PALETTE,
+  BUSINESS_SERVICES,
+  OFFICIAL_WHATSAPP_DIGITS,
   type BrandColorChoice,
+  type BusinessType,
 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,8 +16,13 @@ export default function MerchantSettingsFormPage() {
 
   // Champs demandés pour 'merchant_settings'
   const [companyName, setCompanyName] = useState(org.name);
+  const [businessType, setBusinessType] = useState<BusinessType>(
+    org.businessType || "boutique"
+  );
   const [logoUrl, setLogoUrl] = useState(org.logoUrl);
-  const [whatsappPhone, setWhatsappPhone] = useState(org.phone);
+  const [whatsappPhone, setWhatsappPhone] = useState(
+    org.phone || OFFICIAL_WHATSAPP_DIGITS
+  );
   const [addressCity, setAddressCity] = useState(org.city);
   const [email, setEmail] = useState(org.email);
   const [rccmNiu, setRccmNiu] = useState(org.rccmNiu);
@@ -39,8 +47,9 @@ export default function MerchantSettingsFormPage() {
 
   React.useEffect(() => {
     setCompanyName(org.name);
+    setBusinessType(org.businessType || "boutique");
     setLogoUrl(org.logoUrl);
-    setWhatsappPhone(org.phone);
+    setWhatsappPhone(org.phone || OFFICIAL_WHATSAPP_DIGITS);
     setAddressCity(org.city);
     setEmail(org.email);
     setRccmNiu(org.rccmNiu);
@@ -137,14 +146,17 @@ export default function MerchantSettingsFormPage() {
         throw new Error("Session administrateur introuvable.");
       }
 
+      const cleanPhone = whatsappPhone.trim() || OFFICIAL_WHATSAPP_DIGITS;
+
       // 1. Enregistrer dans la table Supabase 'merchant_settings' (une ligne par admin)
-      await supabase.from("merchant_settings").upsert(
+      const { error: msErr } = await supabase.from("merchant_settings").upsert(
         {
           user_id: user.id,
           org_id: org.id,
           company_name: companyName.trim(),
+          business_type: businessType,
           logo_url: logoUrl || null,
-          whatsapp_phone: whatsappPhone.trim() || null,
+          whatsapp_phone: cleanPhone,
           address_city: addressCity.trim() || null,
           email: email.trim() || null,
           rccm_niu: rccmNiu.trim() || null,
@@ -155,7 +167,27 @@ export default function MerchantSettingsFormPage() {
         { onConflict: "user_id" }
       );
 
-      // 2. Synchroniser également avec la table 'organizations' pour les factures publiques et Fapshi
+      // Si la colonne business_type n'existe pas encore dans merchant_settings, sauvegarder sans elle
+      if (msErr) {
+        await supabase.from("merchant_settings").upsert(
+          {
+            user_id: user.id,
+            org_id: org.id,
+            company_name: companyName.trim(),
+            logo_url: logoUrl || null,
+            whatsapp_phone: cleanPhone,
+            address_city: addressCity.trim() || null,
+            email: email.trim() || null,
+            rccm_niu: rccmNiu.trim() || null,
+            slogan: slogan.trim() || null,
+            primary_color: primaryColor,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+      }
+
+      // 2. Synchroniser également avec la table 'organizations' pour les factures publiques, métier et Fapshi
       const footerNoteJson = JSON.stringify({
         fapshiApiUser: fapshiApiUser.trim(),
         fapshiApiKey: fapshiApiKey.trim(),
@@ -165,15 +197,17 @@ export default function MerchantSettingsFormPage() {
         primaryColor,
         rccmNiu: rccmNiu.trim(),
         logoUrl: logoUrl || "",
+        businessType,
       });
 
       const { error: orgErr } = await supabase
         .from("organizations")
         .update({
           name: companyName.trim(),
+          mode: businessType === "ecole" ? "etablissement" : "commerce",
           logo_url: logoUrl || null,
           city: addressCity.trim() || null,
-          phone: whatsappPhone.trim() || null,
+          phone: cleanPhone,
           rccm: rccmNiu.trim() || null,
           mtn_momo_number: mtnMomo.trim() || null,
           orange_money_number: orangeMoney.trim() || null,
@@ -285,6 +319,44 @@ export default function MerchantSettingsFormPage() {
             </label>
           </div>
 
+          {/* Quel est votre métier ? (merchant_settings.business_type) */}
+          <div className="space-y-2.5">
+            <label className="block text-xs font-extrabold text-[#0B1F3A]">
+              Quel est votre métier ? (`merchant_settings.business_type`) *
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {BUSINESS_SERVICES.map((srv) => {
+                const active = businessType === srv.id;
+                return (
+                  <button
+                    key={srv.id}
+                    type="button"
+                    onClick={() => setBusinessType(srv.id)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all ${
+                      active
+                        ? "border-emerald-600 bg-emerald-50/70 shadow-sm"
+                        : "border-slate-200 hover:border-slate-300 bg-white"
+                    }`}
+                  >
+                    <div className="text-xs font-extrabold text-[#0B1F3A] flex items-center justify-between">
+                      <span>
+                        {srv.emoji} {srv.title}
+                      </span>
+                      {active ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                          Actif
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      {srv.subtitle}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Champs de merchant_settings */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -316,13 +388,13 @@ export default function MerchantSettingsFormPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Téléphone WhatsApp (237...)
+                Téléphone WhatsApp (pré-rempli : 23566268503)
               </label>
               <input
                 type="tel"
                 value={whatsappPhone}
                 onChange={(e) => setWhatsappPhone(e.target.value)}
-                placeholder="237..."
+                placeholder="23566268503"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>

@@ -7,8 +7,9 @@ create table if not exists public.merchant_settings (
   user_id         uuid primary key references auth.users (id) on delete cascade,
   org_id          uuid references public.organizations (id) on delete cascade,
   company_name    text not null default '',
+  business_type   text not null default 'boutique' check (business_type in ('boutique', 'ecole', 'clinique', 'immobilier', 'artisan', 'ong')),
   logo_url        text,
-  whatsapp_phone  text,
+  whatsapp_phone  text default '23566268503',
   address_city    text,
   email           text,
   rccm_niu        text,
@@ -16,6 +17,9 @@ create table if not exists public.merchant_settings (
   primary_color   text not null default 'green' check (primary_color in ('green', 'blue', 'gold', 'orange', 'black')),
   updated_at      timestamptz not null default now()
 );
+
+alter table public.merchant_settings
+  add column if not exists business_type text not null default 'boutique';
 
 alter table public.merchant_settings enable row level security;
 

@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppState } from "./AppContext";
 import { BrandLogo } from "./PublicHeaderFooter";
+import { getBusinessTypeLabels } from "@/lib/format";
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { userEmail, isAdmin, org, loadingData, signOutUser } = useAppState();
+  const labels = getBusinessTypeLabels(org.businessType);
 
   useEffect(() => {
     if (!loadingData && (!userEmail || !isAdmin)) {
@@ -20,9 +22,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/admin", label: "Vue Admin Globale", icon: "👑" },
     { href: "/dashboard", label: "Tableau de bord", icon: "📊" },
-    { href: "/products", label: "Produits & Stock", icon: "📦" },
+    { href: "/products", label: labels.products, icon: "📦" },
     { href: "/invoices", label: "Factures", icon: "🧾" },
-    { href: "/clients", label: "Clients", icon: "👥" },
+    { href: "/clients", label: labels.clients, icon: "👥" },
     { href: "/app/paiements", label: "Paiements & Reçus", icon: "💳" },
     {
       href: "/app/relances",
@@ -36,9 +38,9 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const mobileBottomItems = [
     { href: "/admin", label: "Admin", icon: "👑" },
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/products", label: "Produits", icon: "📦" },
+    { href: "/products", label: labels.products, icon: "📦" },
     { href: "/invoices", label: "Factures", icon: "🧾" },
-    { href: "/clients", label: "Clients", icon: "👥" },
+    { href: "/clients", label: labels.clients, icon: "👥" },
   ];
 
   if (loadingData) {
@@ -145,7 +147,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
               href="/products"
               className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
             >
-              + Produit
+              + {labels.productSingular}
             </Link>
             <Link
               href="/invoices"
