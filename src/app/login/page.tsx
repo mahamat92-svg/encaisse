@@ -38,42 +38,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Vérifier que l'utilisateur a bien le rôle 'admin' dans Supabase
-      const [{ data: platformAdminFlag }, { data: profileRow }, { data: myMemberships }] =
-        await Promise.all([
-          supabase.rpc("is_platform_admin"),
-          supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .maybeSingle(),
-          supabase
-            .from("memberships")
-            .select("role")
-            .eq("user_id", data.user.id)
-            .limit(1),
-        ]);
-
-      const profileRole = (profileRow as { role?: string } | null)?.role;
-      const memberRole = myMemberships?.[0]?.role;
-      const metaRole = data.user.user_metadata?.role;
-      const isAllowedAdmin =
-        Boolean(platformAdminFlag) ||
-        profileRole === "admin" ||
-        metaRole === "admin" ||
-        memberRole === "owner";
-
-      if (!isAllowedAdmin) {
-        await supabase.auth.signOut();
-        setError(
-          "Accès refusé : seuls les utilisateurs avec role = 'admin' peuvent se connecter à l'administration."
-        );
-        setLoading(false);
-        return;
-      }
-
       await refreshOrgData();
-      router.replace("/admin");
+      router.replace("/admin/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");
     } finally {
@@ -90,27 +56,27 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
         <div className="space-y-1 text-center">
           <span className="inline-block px-3 py-1 rounded-full bg-slate-100 text-[#0B1F3A] text-xs font-extrabold uppercase tracking-wider">
-            🔒 Accès Administrateur
+            🔒 Connexion InnovTech MHA Infinity
           </span>
           <h1 className="text-2xl font-extrabold text-[#0B1F3A] pt-1">
-            Connexion Admin
+            Se connecter
           </h1>
           <p className="text-xs text-slate-500">
-            Réservé uniquement à l&apos;administrateur InnovTech Encaisse.
+            Accédez à votre espace d&apos;administration et de facturation.
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Adresse e-mail administrateur
+              Email
             </label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@domaine.com"
+              placeholder="contact@entreprise.com"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
             />
           </div>
@@ -140,20 +106,29 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="w-full py-3 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] disabled:opacity-50 text-white font-extrabold text-sm transition-colors shadow-sm"
           >
-            {loading ? "Vérification en cours..." : "Se connecter"}
+            {loading ? "Connexion en cours..." : "Se connecter"}
           </button>
         </form>
 
-        <div className="pt-4 border-t border-slate-100 text-center">
-          <Link
-            href="/"
-            className="text-xs font-bold text-slate-500 hover:text-[#0B1F3A]"
-          >
-            ← Retour à l&apos;accueil
-          </Link>
+        <div className="pt-4 border-t border-slate-100 text-center space-y-2">
+          <div>
+            <Link
+              href="/signup"
+              className="text-xs sm:text-sm font-extrabold text-emerald-700 hover:underline"
+            >
+              Pas encore de compte ? S&apos;inscrire
+            </Link>
+          </div>
+          <div>
+            <Link
+              href="/"
+              className="text-xs font-bold text-slate-500 hover:text-[#0B1F3A]"
+            >
+              ← Retour à l&apos;accueil
+            </Link>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

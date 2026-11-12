@@ -21,10 +21,10 @@ export default function ServicesPage() {
             Multi-Services SaaS · InnovTech MHA Infinity
           </span>
           <h1 className="text-3xl sm:text-5xl font-extrabold text-[#0B1F3A] leading-tight">
-            Une seule plateforme, tous vos métiers. Choisissez votre service.
+            Une seule plateforme, tous vos métiers.
           </h1>
           <p className="text-slate-600 text-sm sm:text-base">
-            Encaisse, École, Clinique, Immobilier, Artisan, ONG - Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp
+            Encaisse Boutique, École, Clinique, Immobilier, Artisan, ONG — Choisissez votre service et profitez de 7 jours d&apos;essai gratuit.
           </p>
           <div className="pt-1">
             <a
@@ -65,7 +65,7 @@ export default function ServicesPage() {
                 </div>
 
                 <ul className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-700">
-                  {srv.features.map((feat) => (
+                  {srv.bullets.map((feat) => (
                     <li key={feat} className="flex items-center gap-2 font-semibold">
                       <span className="text-emerald-600 font-extrabold">✔</span>
                       <span>{feat}</span>
@@ -74,7 +74,7 @@ export default function ServicesPage() {
                   <li className="flex items-center gap-2 text-slate-500">
                     <span className="text-emerald-600 font-extrabold">✔</span>
                     <span>
-                      Menu adapté :{" "}
+                      Labels Admin :{" "}
                       <strong className="text-slate-800">{srv.productsLabel}</strong> &{" "}
                       <strong className="text-slate-800">{srv.clientsLabel}</strong>
                     </span>
@@ -84,52 +84,14 @@ export default function ServicesPage() {
 
               <div className="space-y-2.5 pt-2">
                 <Link
-                  href={`/inscription?service=${srv.id}`}
+                  href={`/signup?service=${srv.id}`}
                   className="block w-full py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs sm:text-sm font-extrabold text-center shadow-sm transition-colors"
                 >
-                  Choisir ce service →
+                  Choisir ce service
                 </Link>
-                <a
-                  href={`https://wa.me/23566268503?text=${encodeURIComponent(
-                    `Bonjour InnovTech MHA Infinity, je veux choisir le service ${srv.title} (${srv.subtitle}).`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full py-2.5 px-4 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-extrabold text-center shadow-sm transition-colors"
-                >
-                  💬 Choisir sur WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY})
-                </a>
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Bandeau Contact WhatsApp */}
-        <div className="bg-[#0B1F3A] text-white rounded-2xl p-8 text-center space-y-4">
-          <h2 className="text-2xl font-extrabold">
-            Besoin d&apos;une configuration sur mesure pour votre métier ?
-          </h2>
-          <p className="text-sm text-slate-300 max-w-xl mx-auto">
-            Notre équipe à Ngaoundéré configure votre espace (Boutique, École, Clinique, Immobilier, Artisan ou ONG) avec votre logo et vos clés Fapshi.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <a
-              href={`https://wa.me/23566268503?text=${encodeURIComponent(
-                "Bonjour InnovTech MHA Infinity, je veux un compte"
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white font-extrabold text-sm shadow-md"
-            >
-              💬 Discuter sur WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY})
-            </a>
-            <Link
-              href="/login"
-              className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm"
-            >
-              Se connecter à mon compte
-            </Link>
-          </div>
         </div>
       </main>
 

@@ -78,32 +78,29 @@ export function PublicNavbar() {
           })}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* 1. HEADER : Bouton vert WhatsApp */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <a
             href={OFFICIAL_WHATSAPP_ACCOUNT_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-[#25D366] hover:bg-[#1EBE5D] text-white shadow-sm transition-colors"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] border border-[#25D366]/40 transition-colors"
           >
             <WhatsAppIcon className="w-4 h-4 shrink-0" />
             <span>WhatsApp</span>
           </a>
 
-          <button
-            type="button"
-            onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
-            className="hidden sm:inline-flex px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Changer de langue / Switch language"
-          >
-            {locale === "fr" ? "🇫🇷 FR" : "🇬🇧 EN"}
-          </button>
-
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-[#0B1F3A] hover:bg-[#132D54] text-white shadow-sm transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border border-slate-300 hover:bg-slate-100 text-[#0B1F3A] transition-colors"
           >
             <span>Se connecter</span>
+          </Link>
+
+          <Link
+            href="/signup"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+          >
+            <span>S&apos;inscrire Gratuit</span>
           </Link>
         </div>
       </div>
@@ -228,14 +225,13 @@ export function PublicFooter() {
 export function FloatingWhatsAppButton() {
   return (
     <a
-      href={OFFICIAL_WHATSAPP_URL}
+      href="https://wa.me/23566268503"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`WhatsApp ${OFFICIAL_WHATSAPP_DISPLAY}`}
-      className="fixed bottom-18 lg:bottom-6 right-4 sm:right-6 z-50 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs sm:text-sm shadow-xl border-2 border-white transition-transform hover:scale-105 no-print"
+      aria-label="WhatsApp +235 66 26 85 03"
+      className="fixed bottom-18 lg:bottom-6 right-4 sm:right-6 z-50 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs sm:text-sm shadow-xl border-2 border-white no-print"
     >
-      <WhatsAppIcon className="w-5 h-5 shrink-0" />
-      <span>WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}</span>
+      <span>💬 WhatsApp +235 66 26 85 03</span>
     </a>
   );
 }

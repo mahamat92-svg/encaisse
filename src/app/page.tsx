@@ -5,10 +5,54 @@ import Link from "next/link";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
 import {
   BUSINESS_SERVICES,
-  OFFICIAL_WHATSAPP_ACCOUNT_URL,
   OFFICIAL_WHATSAPP_DISPLAY,
   OFFICIAL_WHATSAPP_URL,
 } from "@/lib/format";
+
+const PRICING_PLANS = [
+  {
+    id: "starter",
+    name: "Starter",
+    price: "5.000 FCFA / mois",
+    subtitle: "1 utilisateur, 50 factures",
+    points: [
+      "1 utilisateur inclus",
+      "Jusqu'à 50 factures / mois",
+      "Paiement Mobile Money & Fapshi",
+      "Support WhatsApp",
+    ],
+    href: "/signup?plan=starter",
+    popular: false,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "10.000 FCFA / mois",
+    subtitle: "Illimité, Logo, WhatsApp",
+    points: [
+      "Factures, produits et clients illimités",
+      "Logo personnalisé sur chaque facture PDF",
+      "Partage WhatsApp professionnel en 1 clic",
+      "7 jours d'essai gratuit inclus",
+    ],
+    href: "/signup?plan=pro",
+    popular: true,
+  },
+  {
+    id: "ecole_clinique",
+    name: "École / Clinique",
+    price: "25.000 FCFA / mois",
+    subtitle: "Multi-classes, Rapports",
+    points: [
+      "Suivi par classe, élève ou patient",
+      "Frais scolaires, soins et paiements partiels",
+      "Rapports financiers et relances WhatsApp",
+      "Accompagnement dédié InnovTech MHA Infinity",
+    ],
+    href: "/signup?plan=pro&service=ecole",
+    popular: false,
+  },
+];
 
 export default function HomePage() {
   return (
@@ -22,12 +66,12 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold">
               <span>🌍 InnovTech MHA Infinity</span>
               <span>•</span>
-              <span>MTN MoMo · Orange Money · Fapshi · WhatsApp</span>
+              <span>7 Jours d&apos;essai gratuit</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
-              Une seule plateforme, tous vos métiers.{" "}
-              <span className="text-emerald-400">Choisissez votre service.</span>
+              Une seule plateforme,{" "}
+              <span className="text-emerald-400">tous vos métiers.</span>
             </h1>
 
             {/* Questions ? WhatsApp: +235 66 26 85 03 sous le titre principal */}
@@ -47,32 +91,33 @@ export default function HomePage() {
               Encaisse, École, Clinique, Immobilier, Artisan, ONG - Facturation + Paiement Orange Money / MTN MoMo / Fapshi / WhatsApp
             </p>
 
-            <div className="flex flex-wrap gap-3 pt-2">
+            {/* 2 grands boutons demandés dans le Héro */}
+            <div className="flex flex-wrap gap-3.5 pt-2">
               <Link
-                href="/services"
+                href="/signup"
                 className="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[#0B1F3A] font-extrabold text-sm sm:text-base shadow-lg transition-colors"
               >
-                Choisir mon service →
-              </Link>
-              <Link
-                href="/login"
-                className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-extrabold text-sm sm:text-base border border-white/20 transition-colors"
-              >
-                Se connecter
+                Créer mon compte gratuit
               </Link>
               <a
-                href={OFFICIAL_WHATSAPP_ACCOUNT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-3.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white font-extrabold text-sm sm:text-base shadow-lg transition-colors"
+                href="#tarifs"
+                className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-extrabold text-sm sm:text-base border border-white/25 transition-colors"
               >
-                💬 WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}
+                Voir les tarifs
               </a>
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-800 text-xs sm:text-sm">
               <div>
                 <div className="font-extrabold text-lg sm:text-xl text-[#F5A524]">
+                  7 Jours
+                </div>
+                <div className="text-slate-300">
+                  Essai gratuit immédiat
+                </div>
+              </div>
+              <div>
+                <div className="font-extrabold text-lg sm:text-xl text-emerald-400">
                   6 Métiers
                 </div>
                 <div className="text-slate-300">
@@ -80,19 +125,11 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <div className="font-extrabold text-lg sm:text-xl text-emerald-400">
-                  Fapshi & MoMo
-                </div>
-                <div className="text-slate-300">
-                  Paiement Mobile Money direct
-                </div>
-              </div>
-              <div>
                 <div className="font-extrabold text-lg sm:text-xl text-white">
-                  100% RLS
+                  MoMo & Fapshi
                 </div>
                 <div className="text-slate-300">
-                  Accès Admin & Client séparés
+                  Paiement Mobile Money & WhatsApp
                 </div>
               </div>
             </div>
@@ -105,10 +142,10 @@ export default function HomePage() {
                   Multi-Services SaaS · InnovTech MHA Infinity
                 </span>
                 <h2 className="font-extrabold text-lg text-[#0B1F3A]">
-                  Quel est votre métier ?
+                  Choisissez votre métier
                 </h2>
                 <p className="text-xs text-slate-500">
-                  L&apos;interface s&apos;adapte automatiquement à votre activité (Boutique, École, Clinique, Immobilier, Artisan ou ONG).
+                  Cliquez sur votre activité pour créer votre compte avec 7 jours d&apos;essai gratuit.
                 </p>
               </div>
 
@@ -116,7 +153,7 @@ export default function HomePage() {
                 {BUSINESS_SERVICES.map((srv) => (
                   <Link
                     key={srv.id}
-                    href={`/inscription?service=${srv.id}`}
+                    href={`/signup?service=${srv.id}`}
                     className="p-3 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-1"
                   >
                     <div className="font-extrabold text-[#0B1F3A] flex items-center gap-1.5">
@@ -132,16 +169,16 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <Link
-                  href="/login"
-                  className="flex-1 py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs sm:text-sm font-extrabold text-center shadow-sm transition-colors"
+                  href="/signup"
+                  className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-extrabold text-center shadow-sm transition-colors"
                 >
-                  Se connecter à l&apos;administration →
+                  S&apos;inscrire Gratuit →
                 </Link>
                 <Link
-                  href="/services"
-                  className="py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs sm:text-sm font-extrabold text-center border border-emerald-200 transition-colors"
+                  href="/login"
+                  className="py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs sm:text-sm font-extrabold text-center transition-colors"
                 >
-                  Voir les 6 services
+                  Se connecter
                 </Link>
               </div>
             </div>
@@ -149,27 +186,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Aperçu des 6 services sur la page d'accueil */}
-      <section className="py-14 px-4 sm:px-6 bg-[#F8FAFC] flex-1">
+      {/* Section Nos 6 Services Métiers */}
+      <section className="py-14 px-4 sm:px-6 bg-[#F8FAFC]">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-600">
-              Nos 6 Solutions Métiers
+              Nos 6 Services Métiers
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]">
-              Choisissez le service adapté à votre organisation
+              Une seule plateforme adaptée à votre activité
             </h2>
             <p className="text-xs sm:text-sm text-slate-600">
-              Besoin d&apos;accompagnement ? Écrivez-nous directement sur WhatsApp au{" "}
-              <a
-                href={OFFICIAL_WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-extrabold text-[#128C7E] hover:underline"
-              >
-                {OFFICIAL_WHATSAPP_DISPLAY}
-              </a>
-              .
+              Les libellés de votre espace d&apos;administration s&apos;adaptent automatiquement selon votre métier.
             </p>
           </div>
 
@@ -190,7 +218,7 @@ export default function HomePage() {
                     {srv.subtitle}
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {srv.features.map((f) => (
+                    {srv.bullets.map((f) => (
                       <span
                         key={f}
                         className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold"
@@ -201,24 +229,88 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="pt-2 flex flex-col gap-2">
-                  <Link
-                    href={`/inscription?service=${srv.id}`}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold text-center transition-colors"
+                <Link
+                  href={`/signup?service=${srv.id}`}
+                  className="block w-full py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold text-center transition-colors"
+                >
+                  Choisir ce service
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section TARIFS sur la page d'accueil */}
+      <section id="tarifs" className="py-16 px-4 sm:px-6 bg-white border-t border-slate-200">
+        <div className="max-w-6xl mx-auto space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold uppercase tracking-wider">
+              Tarifs transparents · 7 jours d&apos;essai gratuit
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[#0B1F3A]">
+              Nos Tarifs
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Testez gratuitement pendant 7 jours, puis réglez par Orange Money ou MTN MoMo.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {PRICING_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`rounded-2xl p-6 sm:p-7 flex flex-col justify-between space-y-6 ${plan.popular
+                    ? "bg-[#0B1F3A] text-white border-2 border-emerald-500 shadow-xl"
+                    : "bg-[#F8FAFC] text-slate-900 border border-slate-200 shadow-sm"
+                  }`}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-extrabold">{plan.name}</h3>
+                    {plan.popular ? (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-[#0B1F3A] text-[10px] font-extrabold uppercase">
+                        Recommandé
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <div className="text-2xl sm:text-3xl font-black">
+                      {plan.price}
+                    </div>
+                    <p
+                      className={`text-xs font-bold mt-1 ${plan.popular ? "text-emerald-300" : "text-emerald-700"
+                        }`}
+                    >
+                      {plan.subtitle}
+                    </p>
+                  </div>
+
+                  <ul
+                    className={`space-y-2 text-xs pt-3 border-t ${plan.popular
+                        ? "border-slate-700 text-slate-200"
+                        : "border-slate-200 text-slate-700"
+                      }`}
                   >
-                    Choisir ce service
-                  </Link>
-                  <a
-                    href={`https://wa.me/23566268503?text=${encodeURIComponent(
-                      `Bonjour InnovTech MHA Infinity, je choisis le service : ${srv.title} (${srv.subtitle}).`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2 px-4 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-extrabold text-center transition-colors"
-                  >
-                    💬 Activer sur WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY})
-                  </a>
+                    {plan.points.map((pt) => (
+                      <li key={pt} className="flex items-center gap-2 font-medium">
+                        <span className="text-emerald-500 font-extrabold">✔</span>
+                        <span>{pt}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+
+                <Link
+                  href="/signup?plan=pro"
+                  className={`block w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold text-center shadow-sm transition-colors ${plan.popular
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-[#0B1F3A]"
+                      : "bg-[#0B1F3A] hover:bg-[#132D54] text-white"
+                    }`}
+                >
+                  Souscrire
+                </Link>
               </div>
             ))}
           </div>

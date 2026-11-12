@@ -261,30 +261,20 @@ export function normalizeWhatsAppPhone(
 }
 
 /**
- * Construit un lien WhatsApp wa.me avec encodeURIComponent :
- * - Si un numéro existe : https://wa.me/23566268503?text=...
- * - Sinon : https://wa.me/?text=...
+ * Construit un lien WhatsApp wa.me simple côté client, sans clé API :
+ * const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
  */
 export function buildWhatsAppLink(
   phone: string | null | undefined,
   message: string
 ): string {
-  const cleanPhone = normalizeWhatsAppPhone(phone);
-  const encoded = encodeURIComponent(message);
-  return cleanPhone
-    ? `https://wa.me/${cleanPhone}?text=${encoded}`
-    : `https://wa.me/?text=${encoded}`;
+  const cleanPhone = normalizeWhatsAppPhone(phone) || OFFICIAL_WHATSAPP_DIGITS;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 
 /**
- * Message WhatsApp professionnel avec entreprise, ville et numéro WhatsApp marchand :
- * "Bonjour [Client] 👋
- * Voici votre facture [Numéro] de [Montant] XAF
- * 🏢 [Nom Entreprise]
- * 📍 [Ville]
- * 📞 WhatsApp: [Numéro WhatsApp]
- * 💳 Payez ici: [Lien pay]
- * Merci pour votre confiance 🙏 - [Nom Entreprise]"
+ * Message WhatsApp officiel pour les factures :
+ * "Bonjour [Client], voici votre facture [Numéro] de [Montant] XAF de [Nom Entreprise]. Payez ici: [Lien]. Merci - [Nom Entreprise] - WhatsApp: +23566268503"
  */
 export function buildInvoiceWhatsAppMessage(params: {
   clientName: string;
@@ -300,18 +290,8 @@ export function buildInvoiceWhatsAppMessage(params: {
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
   const merchant = params.merchantName?.trim() || "InnovTech MHA Infinity";
-  const city = params.merchantCity?.trim() || "Ngaoundéré, Cameroun";
-  const waPhone = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
   const url = params.paymentUrl.trim();
-  return [
-    `Bonjour ${client} 👋`,
-    `Voici votre facture ${num} de ${amt} XAF`,
-    `🏢 ${merchant}`,
-    `📍 ${city}`,
-    `📞 WhatsApp: ${waPhone}`,
-    `💳 Payez ici: ${url}`,
-    `Merci pour votre confiance 🙏 - ${merchant}`,
-  ].join("\n");
+  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant} - WhatsApp: +23566268503`;
 }
 
 /**

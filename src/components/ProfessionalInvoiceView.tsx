@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -48,7 +48,7 @@ interface InvoiceDataView {
   }>;
 }
 
-export function ProfessionalInvoiceView({
+function ProfessionalInvoiceViewInner({
   invoiceIdOrToken,
   viewerMode,
 }: {
@@ -617,6 +617,23 @@ export function ProfessionalInvoiceView({
         </div>
       </div>
     </div>
+  );
+}
+
+export function ProfessionalInvoiceView(props: {
+  invoiceIdOrToken: string;
+  viewerMode: "client" | "admin";
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center p-6 text-xs text-slate-500">
+          Chargement de la facture...
+        </div>
+      }
+    >
+      <ProfessionalInvoiceViewInner {...props} />
+    </Suspense>
   );
 }
 

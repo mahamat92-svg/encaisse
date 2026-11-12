@@ -158,7 +158,37 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-4">
+          {org.subscriptionStatus === "expired" || org.trialDaysLeft <= 0 ? (
+            <div className="p-4 rounded-2xl bg-red-600 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+              <div className="text-xs sm:text-sm font-extrabold">
+                ⚠️ Votre essai est terminé, payez avec Orange Money / MTN MoMo pour continuer - WhatsApp: +23566268503
+              </div>
+              <a
+                href="https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20activer%20mon%20abonnement%20par%20Orange%20Money%20%2F%20MTN%20MoMo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-white text-red-700 text-xs font-extrabold shrink-0 text-center"
+              >
+                💬 Activer sur WhatsApp (+23566268503)
+              </a>
+            </div>
+          ) : org.subscriptionStatus === "trial" ? (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs no-print">
+              <div className="font-bold">
+                🎁 Essai gratuit 7 jours actif ({org.trialDaysLeft} jour(s) restant(s)) — Après 7 jours, réglez par Orange Money / MTN MoMo.
+              </div>
+              <a
+                href="https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20souscrire%20%C3%A0%20un%20forfait"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-extrabold text-[#128C7E] hover:underline shrink-0"
+              >
+                WhatsApp: +23566268503 →
+              </a>
+            </div>
+          ) : null}
+
           {children}
         </main>
       </div>

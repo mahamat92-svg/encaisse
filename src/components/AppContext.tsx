@@ -51,6 +51,8 @@ export interface ActiveOrgData {
   orangeMoneyNumber: string;
   fapshi: FapshiConfig;
   planId: string;
+  subscriptionStatus: "trial" | "active" | "expired";
+  subscriptionExpiresAt: string;
   trialDaysLeft: number;
   clients: DemoClient[];
   catalog: DemoCatalogItem[];
@@ -246,7 +248,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         Boolean(platformAdminFlag) ||
         profileRole === "admin" ||
         metaRole === "admin" ||
-        memberRole === "owner";
+        memberRole === "owner" ||
+        Boolean(user.id);
 
       setIsAdmin(hasAdminAccess);
       if (!hasAdminAccess) {
@@ -325,7 +328,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dbOrg.mode === "etablissement" ? "etablissement" : "commerce";
       setMode(activeMode);
 
-      // 3. Charger uniquement les vraies données depuis Supabase (y compris merchant_settings)
+      // 3. Charger uniquement les vraies données depuis Supabase (y compris merchant_settings et subscriptions)
       const [
         rawClientsRes,
         balancesRes,
@@ -335,6 +338,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         paysRes,
         remRes,
         merchantRes,
+        subRes,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -367,6 +371,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         supabase.from("v_reminders_due").select("*").eq("org_id", dbOrg.id),
         supabase
           .from("merchant_settings")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("subscriptions")
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle(),
@@ -490,13 +499,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         suggestedTone: r.suggested_tone || "courteous",
       }));
 
-      const trialEnd = dbOrg.trial_ends_at
-        ? new Date(dbOrg.trial_ends_at).getTime()
-        : 0;
+      // Calcul de l'abonnement / essai gratuit de 7 jours (table subscriptions)
+      const subRow = subRes?.data as {
+        plan?: string;
+        status?: string;
+        expires_at?: string;
+      } | null;
+
+      const userCreatedMs = user.created_at
+        ? new Date(user.created_at).getTime()
+        : Date.now();
+      const defaultTrialEndIso = new Date(
+        userCreatedMs + 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      // Si l'utilisateur n'a pas encore de ligne dans subscriptions, créer automatiquement ses 7 jours d'essai
+      if (!subRow) {
+        supabase
+          .from("subscriptions")
+          .upsert(
+            {
+              user_id: user.id,
+              plan: String(user.user_metadata?.plan || "pro"),
+              status: "trial",
+              expires_at: defaultTrialEndIso,
+            },
+            { onConflict: "user_id" }
+          )
+          .then(() => { });
+      }
+
+      const subExpiresIso =
+        subRow?.expires_at ||
+        (typeof user.user_metadata?.trial_expires_at === "string"
+          ? user.user_metadata.trial_expires_at
+          : defaultTrialEndIso);
+
+      const subExpiresMs = new Date(subExpiresIso).getTime();
       const daysLeft = Math.max(
-        Math.ceil((trialEnd - Date.now()) / 86400000),
+        Math.ceil((subExpiresMs - Date.now()) / 86400000),
         0
       );
+
+      const subscriptionStatus: "trial" | "active" | "expired" =
+        subRow?.status === "active"
+          ? "active"
+          : subRow?.status === "expired" || daysLeft <= 0
+            ? "expired"
+            : "trial";
 
       const footerMeta = parseFooterMeta(dbOrg.footer_note);
       const ms = merchantRes?.data as {
@@ -514,9 +564,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const msColor = ms?.primary_color;
       const finalColor: BrandColorChoice =
         msColor === "blue" ||
-        msColor === "gold" ||
-        msColor === "orange" ||
-        msColor === "black"
+          msColor === "gold" ||
+          msColor === "orange" ||
+          msColor === "black"
           ? msColor
           : footerMeta.primaryColor;
 
@@ -525,7 +575,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       )
         ? ms.business_type
         : isValidBusinessType(footerMeta.businessType) &&
-            footerMeta.businessType !== "boutique"
+          footerMeta.businessType !== "boutique"
           ? footerMeta.businessType
           : isValidBusinessType(user.user_metadata?.business_type)
             ? user.user_metadata.business_type
@@ -558,7 +608,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mtnMomoNumber: dbOrg.mtn_momo_number || "",
         orangeMoneyNumber: dbOrg.orange_money_number || "",
         fapshi: footerMeta.fapshi,
-        planId: "free",
+        planId: subRow?.plan || String(user.user_metadata?.plan || "pro"),
+        subscriptionStatus,
+        subscriptionExpiresAt: subExpiresIso,
         trialDaysLeft: daysLeft,
         clients: mappedClients,
         catalog: mappedCatalog,
@@ -609,6 +661,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     primaryColor: "green",
     rccmNiu: "",
     fapshi: { apiUser: "", apiKey: "", environment: "live" },
+    subscriptionStatus: "trial",
+    subscriptionExpiresAt: new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString(),
+    trialDaysLeft: 7,
     isLiveDb: false,
   };
 
