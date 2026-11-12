@@ -371,12 +371,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const mappedPayments: DemoPayment[] = (paysRes.data ?? []).map((p) => {
         const cli = clientMap.get(p.client_id);
+        const clientDoc = mappedDocs.find((d) => d.clientId === p.client_id);
         return {
           id: p.id,
           receiptNumber: p.receipt_number || "REC",
           clientId: p.client_id,
           clientName: cli?.name || "Client",
-          documentNumber: "Facture",
+          whatsappPhone: cli?.payerPhone || cli?.phone || "",
+          publicToken: clientDoc?.publicToken || "",
+          documentNumber: clientDoc?.number || "Facture",
           amount: Number(p.amount ?? 0),
           method: p.method,
           reference: p.reference || "",

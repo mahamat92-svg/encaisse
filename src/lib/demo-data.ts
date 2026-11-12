@@ -74,6 +74,8 @@ export interface DemoPayment {
   receiptNumber: string;
   clientId: string;
   clientName: string;
+  whatsappPhone?: string;
+  publicToken?: string;
   documentNumber: string;
   amount: number;
   method: PaymentMethod;

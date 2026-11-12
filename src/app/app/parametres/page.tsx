@@ -108,11 +108,10 @@ export default function OrgSettingsPage() {
               </h2>
             </div>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                fapshiApiUser && fapshiApiKey
+              className={`px-3 py-1 rounded-full text-xs font-bold ${fapshiApiUser && fapshiApiKey
                   ? "bg-emerald-100 text-emerald-800"
                   : "bg-slate-100 text-slate-600"
-              }`}
+                }`}
             >
               {fapshiApiUser && fapshiApiKey
                 ? "🟢 Fapshi configuré"

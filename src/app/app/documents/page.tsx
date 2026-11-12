@@ -4,11 +4,21 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useAppState } from "@/components/AppContext";
 import {
-  buildWhatsAppLink,
+  buildInvoiceWhatsAppMessage,
   computeLineTotals,
   formatCFA,
   formatDate,
 } from "@/lib/format";
+import { WhatsAppShareButton } from "@/components/WhatsAppButton";
+
+interface CreatedInvoiceShare {
+  clientName: string;
+  clientPhone: string;
+  invoiceNumber: string;
+  productName: string;
+  amount: number;
+  publicToken: string;
+}
 
 export default function DocumentsPage() {
   const { org, createDocumentRecord } = useAppState();
@@ -17,7 +27,9 @@ export default function DocumentsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [lastCreated, setLastCreated] = useState<CreatedInvoiceShare | null>(
+    null
+  );
 
   const [docType, setDocType] = useState<"invoice" | "quote">("invoice");
   const [clientId, setClientId] = useState<string>("");
@@ -35,6 +47,11 @@ export default function DocumentsPage() {
     setApplyVat(org.vatRegistered);
   }, [org.vatRegistered]);
 
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://encaisse.vercel.app";
+
   const filteredDocs = org.documents.filter((d) => {
     if (filter === "unpaid") return d.balance > 0;
     if (filter === "paid") return d.status === "paid";
@@ -44,9 +61,23 @@ export default function DocumentsPage() {
   async function handleCreateDocument(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccessMsg(null);
+    setLastCreated(null);
     setSaving(true);
     try {
+      const selectedClient = org.clients.find((c) => c.id === clientId);
+      const finalClientName = selectedClient
+        ? selectedClient.name
+        : newClientName.trim();
+      const finalClientPhone = selectedClient
+        ? selectedClient.phone
+        : newClientPhone.trim();
+      const totalAmount = computeLineTotals(
+        Number(quantity) || 1,
+        Number(unitPrice) || 0,
+        0,
+        applyVat ? 1925 : 0
+      ).total;
+
       const res = await createDocumentRecord({
         docType,
         clientId: clientId || undefined,
@@ -62,9 +93,16 @@ export default function DocumentsPage() {
         setError(res.error || "Erreur lors de la création de la facture.");
         return;
       }
-      setSuccessMsg(
-        `Facture ${res.number ?? ""} créée et enregistrée dans Supabase.`
-      );
+
+      setLastCreated({
+        clientName: finalClientName || "Client",
+        clientPhone: finalClientPhone || "",
+        invoiceNumber: res.number || "FAC",
+        productName: label.trim() || "votre commande",
+        amount: totalAmount,
+        publicToken: res.publicToken || "",
+      });
+
       setShowCreate(false);
       setLabel("");
       setUnitPrice("");
@@ -96,9 +134,39 @@ export default function DocumentsPage() {
         </button>
       </div>
 
-      {successMsg ? (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold">
-          ✅ {successMsg}
+      {/* Bandeau d'envoi WhatsApp immédiat après création de facture */}
+      {lastCreated ? (
+        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="text-xs font-extrabold text-emerald-900">
+              ✅ Facture {lastCreated.invoiceNumber} créée dans Supabase pour{" "}
+              {lastCreated.clientName} ({formatCFA(lastCreated.amount)})
+            </div>
+            <p className="text-xs text-emerald-800">
+              Produit : <strong>{lastCreated.productName}</strong> — Envoyez-la maintenant sur WhatsApp.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <WhatsAppShareButton
+              phone={lastCreated.clientPhone}
+              message={buildInvoiceWhatsAppMessage({
+                clientName: lastCreated.clientName,
+                invoiceNumber: lastCreated.invoiceNumber,
+                amount: lastCreated.amount,
+                productName: lastCreated.productName,
+                paymentUrl: `${origin}/f/${lastCreated.publicToken}`,
+              })}
+              label="Envoyer sur WhatsApp"
+            />
+            {lastCreated.publicToken ? (
+              <Link
+                href={`/f/${lastCreated.publicToken}`}
+                className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-[#0B1F3A] text-xs font-bold"
+              >
+                📄 Voir la facture
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -137,10 +205,10 @@ export default function DocumentsPage() {
                 onChange={(e) => setClientId(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"
               >
-                <option value="">-- Nouveau client (saisir à droite) --</option>
+                <option value="">-- Nouveau client (saisir ci-dessous) --</option>
                 {org.clients.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.name} {c.phone ? `(${c.phone})` : ""}
                   </option>
                 ))}
               </select>
@@ -176,13 +244,13 @@ export default function DocumentsPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Téléphone WhatsApp du client
+                  Téléphone WhatsApp du client (237...)
                 </label>
                 <input
                   type="tel"
                   value={newClientPhone}
                   onChange={(e) => setNewClientPhone(e.target.value)}
-                  placeholder="+237 ..."
+                  placeholder="237..."
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white"
                 />
               </div>
@@ -222,7 +290,7 @@ export default function DocumentsPage() {
                 required
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Description du produit ou de la commande"
+                placeholder="Nom du produit ou service"
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>
@@ -354,16 +422,16 @@ export default function DocumentsPage() {
 
           <div className="space-y-3">
             {filteredDocs.map((doc) => {
-              const shareUrl = `${
-                typeof window !== "undefined"
-                  ? window.location.origin
-                  : "http://localhost:3000"
-              }/f/${doc.publicToken}`;
-              const waMsg = `Bonjour ${doc.clientName},\nVoici votre facture *${doc.number}* (${org.name}) d'un montant de *${formatCFA(
-                doc.total
-              )}* (Reste à payer : *${formatCFA(
-                doc.balance
-              )}*).\n📄 Lien de la facture : ${shareUrl}`;
+              const paymentUrl = `${origin}/f/${doc.publicToken}`;
+              const productName =
+                doc.lines.map((l) => l.label).join(", ") || "votre commande";
+              const waMsg = buildInvoiceWhatsAppMessage({
+                clientName: doc.clientName,
+                invoiceNumber: doc.number,
+                amount: doc.total,
+                productName,
+                paymentUrl,
+              });
 
               return (
                 <div
@@ -388,10 +456,15 @@ export default function DocumentsPage() {
 
                     <div className="font-semibold text-sm text-slate-800">
                       {doc.clientName}
+                      {doc.whatsappPhone ? (
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          ({doc.whatsappPhone})
+                        </span>
+                      ) : null}
                     </div>
                     <div className="text-xs text-slate-500">
-                      Date : {formatDate(doc.issueDate)} · Échéance :{" "}
-                      {formatDate(doc.dueDate)}
+                      Produit : <strong>{productName}</strong> · Date :{" "}
+                      {formatDate(doc.issueDate)}
                     </div>
                   </div>
 
@@ -408,18 +481,15 @@ export default function DocumentsPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link
                         href={`/f/${doc.publicToken}`}
-                        className="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
                       >
-                        📄 Voir PDF
+                        📄 Détail / PDF
                       </Link>
-                      <a
-                        href={buildWhatsAppLink(doc.whatsappPhone, waMsg)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-                      >
-                        💬 WhatsApp
-                      </a>
+                      <WhatsAppShareButton
+                        phone={doc.whatsappPhone}
+                        message={waMsg}
+                        label="Envoyer sur WhatsApp"
+                      />
                     </div>
                   </div>
                 </div>
