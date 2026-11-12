@@ -37,89 +37,127 @@ export const OFFICIAL_WHATSAPP_ACCOUNT_URL =
 export interface BusinessServiceDefinition {
   id: BusinessType;
   icon: string;
+  emoji: string;
   title: string;
-  features: string;
+  subtitle: string;
+  features: string[];
   bullets: string[];
+  productsLabel: string;
+  clientsLabel: string;
 }
 
 export const BUSINESS_SERVICES: BusinessServiceDefinition[] = [
   {
     id: "boutique",
     icon: "🛒",
+    emoji: "🛒",
     title: "Encaisse Boutique",
-    features: "Produits, Stock, Factures",
+    subtitle: "Produits, Stock, Factures",
+    features: ["Produits", "Stock", "Factures"],
     bullets: ["Produits", "Stock", "Factures"],
+    productsLabel: "Produits",
+    clientsLabel: "Clients",
   },
   {
     id: "ecole",
     icon: "🎓",
+    emoji: "🎓",
     title: "École",
-    features: "Élèves, Classes, Frais scolaires, Notes",
+    subtitle: "Élèves, Classes, Frais scolaires, Notes",
+    features: ["Élèves", "Classes", "Frais scolaires", "Notes"],
     bullets: ["Élèves", "Classes", "Frais scolaires", "Notes"],
+    productsLabel: "Frais scolaires",
+    clientsLabel: "Élèves",
   },
   {
     id: "clinique",
     icon: "🏥",
+    emoji: "🏥",
     title: "Clinique",
-    features: "Patients, Consultations, Ordonnances",
+    subtitle: "Patients, Consultations, Ordonnances",
+    features: ["Patients", "Consultations", "Ordonnances"],
     bullets: ["Patients", "Consultations", "Ordonnances"],
+    productsLabel: "Soins",
+    clientsLabel: "Patients",
   },
   {
     id: "immobilier",
     icon: "🏠",
+    emoji: "🏠",
     title: "Immobilier",
-    features: "Maisons, Locataires, Loyers",
+    subtitle: "Maisons, Locataires, Loyers",
+    features: ["Maisons", "Locataires", "Loyers"],
     bullets: ["Maisons", "Locataires", "Loyers"],
+    productsLabel: "Maisons",
+    clientsLabel: "Locataires",
   },
   {
     id: "artisan",
     icon: "✂️",
+    emoji: "✂️",
     title: "Artisan",
-    features: "Commandes, Clients, Rendez-vous",
+    subtitle: "Commandes, Clients, Rendez-vous",
+    features: ["Commandes", "Clients", "Rendez-vous"],
     bullets: ["Commandes", "Clients", "Rendez-vous"],
+    productsLabel: "Produits",
+    clientsLabel: "Clients",
   },
   {
     id: "ong",
     icon: "🤝",
+    emoji: "🤝",
     title: "ONG",
-    features: "Membres, Cotisations, Projets",
+    subtitle: "Membres, Cotisations, Projets",
+    features: ["Membres", "Cotisations", "Projets"],
     bullets: ["Membres", "Cotisations", "Projets"],
+    productsLabel: "Produits",
+    clientsLabel: "Clients",
   },
 ];
 
 export function getBusinessTypeLabels(businessType?: BusinessType | string): {
+  products: string;
   productsLabel: string;
   productSingular: string;
+  clients: string;
   clientsLabel: string;
   clientSingular: string;
 } {
   if (businessType === "ecole") {
     return {
+      products: "Frais scolaires",
       productsLabel: "Frais scolaires",
       productSingular: "Frais scolaire",
+      clients: "Élèves",
       clientsLabel: "Élèves",
       clientSingular: "Élève",
     };
   }
   if (businessType === "clinique") {
     return {
+      products: "Soins",
       productsLabel: "Soins",
       productSingular: "Soin",
+      clients: "Patients",
       clientsLabel: "Patients",
       clientSingular: "Patient",
     };
   }
   if (businessType === "immobilier") {
     return {
+      products: "Maisons",
       productsLabel: "Maisons",
       productSingular: "Maison",
+      clients: "Locataires",
       clientsLabel: "Locataires",
       clientSingular: "Locataire",
     };
   }
   return {
+    products: "Produits",
     productsLabel: "Produits",
     productSingular: "Produit",
+    clients: "Clients",
     clientsLabel: "Clients",
     clientSingular: "Client",
   };
