@@ -157,6 +157,8 @@ export default function DocumentsPage() {
                 paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
                 merchantName: org.name,
                 merchantCity: org.city,
+                merchantPhone: org.phone,
+                footerMessage: org.footerMessage,
               })}
               label="Envoyer sur WhatsApp"
               invoiceShare={{
@@ -179,10 +181,10 @@ export default function DocumentsPage() {
             />
             {lastCreated.publicToken ? (
               <Link
-                href={`/f/${lastCreated.publicToken}`}
-                className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-[#0B1F3A] text-xs font-bold"
+                href={`/invoices/${lastCreated.publicToken}`}
+                className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-[#0B1F3A] text-xs font-extrabold"
               >
-                📄 Voir la facture
+                👁️ Aperçu de ma facture
               </Link>
             ) : null}
           </div>
@@ -452,6 +454,8 @@ export default function DocumentsPage() {
                 paymentUrl,
                 merchantName: org.name,
                 merchantCity: org.city,
+                merchantPhone: org.phone,
+                footerMessage: org.footerMessage,
               });
 
               return (
@@ -502,9 +506,9 @@ export default function DocumentsPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link
                         href={`/invoices/${doc.publicToken}`}
-                        className="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
+                        className="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-extrabold text-[#0B1F3A]"
                       >
-                        📄 Voir / PDF
+                        👁️ Aperçu de ma facture
                       </Link>
                       <WhatsAppShareButton
                         phone={doc.whatsappPhone}
@@ -535,6 +539,64 @@ export default function DocumentsPage() {
               );
             })}
           </div>
+
+          {/* Section 2 séparée : Relances WhatsApp à envoyer */}
+          {org.documents.some((d) => d.status !== "paid" && d.balance > 0) ? (
+            <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <h2 className="text-base font-extrabold text-[#0B1F3A]">
+                💬 Relances WhatsApp à envoyer
+              </h2>
+              <div className="space-y-3">
+                {org.documents
+                  .filter((d) => d.status !== "paid" && d.balance > 0)
+                  .slice(0, 5)
+                  .map((doc) => {
+                    const paymentUrl = `${origin}/pay/${doc.publicToken}`;
+                    const productName =
+                      doc.lines.map((l) => l.label).join(", ") || "votre commande";
+                    const waMsg = buildInvoiceWhatsAppMessage({
+                      clientName: doc.clientName,
+                      invoiceNumber: doc.number,
+                      amount: doc.balance,
+                      productName,
+                      paymentUrl,
+                      merchantName: org.name,
+                      merchantCity: org.city,
+                      merchantPhone: org.phone,
+                      footerMessage: org.footerMessage,
+                    });
+                    return (
+                      <div
+                        key={`relance-${doc.id}`}
+                        className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-[#0B1F3A] truncate">
+                            {doc.clientName} — {doc.number}
+                          </div>
+                          <div className="text-xs text-slate-600">
+                            Reste dû : <strong>{formatCFA(doc.balance)}</strong>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/invoices/${doc.publicToken}`}
+                            className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-[#0B1F3A]"
+                          >
+                            👁️ Aperçu de ma facture
+                          </Link>
+                          <WhatsAppShareButton
+                            phone={doc.whatsappPhone}
+                            message={waMsg}
+                            label="Relancer sur WhatsApp"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          ) : null}
         </>
       )}
     </div>

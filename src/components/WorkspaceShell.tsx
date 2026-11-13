@@ -1,17 +1,45 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppState } from "./AppContext";
 import { BrandLogo } from "./PublicHeaderFooter";
-import { getBusinessTypeLabels } from "@/lib/format";
+import { CompanyAvatar } from "./CompanyAvatar";
+import {
+  getBusinessTypeLabels,
+  MTN_MOMO_PAY_NUMBER,
+  OFFICIAL_EMAIL,
+  OFFICIAL_WHATSAPP_DISPLAY,
+  OFFICIAL_WHATSAPP_URL,
+  ORANGE_MONEY_PAY_NUMBER,
+} from "@/lib/format";
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { userEmail, isAdmin, org, loadingData, signOutUser } = useAppState();
+  const {
+    userEmail,
+    isAdmin,
+    org,
+    loadingData,
+    refreshOrgData,
+    signOutUser,
+  } = useAppState();
   const labels = getBusinessTypeLabels(org.businessType);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+
+  // Temps max 5 secondes sur l'écran de chargement : ne jamais rester bloqué
+  useEffect(() => {
+    if (!loadingData) {
+      setLoadingTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setLoadingTimedOut(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loadingData]);
 
   useEffect(() => {
     if (!loadingData && (!userEmail || !isAdmin)) {
@@ -33,32 +61,65 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       icon: "💬",
       badge: org.reminders.length > 0 ? org.reminders.length : undefined,
     },
-    { href: "/admin/settings", label: "Paramètres de mon Entreprise", icon: "🏢" },
+    { href: "/app/abonnement", label: "Mon Abonnement", icon: "⭐" },
+    { href: "/admin/settings", label: "Mon Entreprise / Paramètres", icon: "🏢" },
   ];
 
   const mobileBottomItems = [
-    { href: "/admin", label: "Admin", icon: "👑" },
+    { href: "/dashboard", label: "Accueil", icon: "📊" },
     { href: "/produits", label: "Publier", icon: "📣" },
-    { href: "/products", label: labels.products, icon: "📦" },
+    { href: "/products", label: "Produits", icon: "📦" },
     { href: "/invoices", label: "Factures", icon: "🧾" },
-    { href: "/clients", label: labels.clients, icon: "👥" },
+    { href: "/admin/settings", label: "Entreprise", icon: "🏢" },
   ];
 
-  if (loadingData) {
+  if (loadingData && !loadingTimedOut) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-xs text-slate-500">
-        Vérification des droits administrateur Supabase...
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 gap-3 text-sm text-slate-600">
+        <div className="w-8 h-8 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
+        <div className="font-bold text-[#0B1F3A]">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (loadingTimedOut && loadingData) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 gap-4 text-center">
+        <div className="text-base font-extrabold text-[#0B1F3A]">
+          Problème de connexion, réessaie
+        </div>
+        <div className="flex flex-wrap gap-3 justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              setLoadingTimedOut(false);
+              refreshOrgData();
+            }}
+            className="px-5 py-3 rounded-xl bg-emerald-600 text-white text-sm font-extrabold"
+          >
+            Réessayer
+          </button>
+          <Link
+            href="/login"
+            className="px-5 py-3 rounded-xl bg-slate-100 text-[#0B1F3A] text-sm font-extrabold"
+          >
+            Se connecter
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (!userEmail || !isAdmin) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 text-xs text-slate-500">
-        Redirection vers /login...
+      <div className="min-h-screen bg-white flex items-center justify-center p-6 text-xs text-slate-500">
+        Redirection vers la connexion...
       </div>
     );
   }
+
+  const hideGlobalTrialBanner =
+    pathname === "/produits" || pathname === "/app/abonnement";
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#F8FAFC]">
@@ -68,15 +129,13 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           <BrandLogo light size={32} />
         </div>
 
-        <div className="p-4 border-b border-slate-800/80 bg-[#132D54]/60">
-          <div className="text-[11px] uppercase tracking-wider text-emerald-400 font-semibold mb-1">
-            🟢 Admin connecté (RLS actif)
-          </div>
-          <div className="font-bold text-sm text-white truncate">
-            {org.name || userEmail}
-          </div>
-          <div className="text-xs text-slate-300 mt-0.5 truncate">
-            {userEmail}
+        <div className="p-4 border-b border-slate-800/80 bg-[#132D54]/60 flex items-center gap-3">
+          <CompanyAvatar logoUrl={org.logoUrl} name={org.name} size={40} />
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-sm text-white truncate">
+              {org.name || "Mon Entreprise"}
+            </div>
+            <div className="text-xs text-slate-300 truncate">{userEmail}</div>
           </div>
         </div>
 
@@ -115,6 +174,14 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2 text-xs">
+          <a
+            href={OFFICIAL_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block px-3 py-1.5 text-emerald-300 hover:underline font-bold"
+          >
+            Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+          </a>
           <button
             type="button"
             onClick={async () => {
@@ -123,32 +190,37 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             }}
             className="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-red-300 hover:bg-red-500/15 font-bold"
           >
-            <span className="truncate">🚪 Déconnexion ({userEmail})</span>
+            <span className="truncate">🚪 Déconnexion</span>
           </button>
         </div>
       </aside>
 
       {/* Contenu principal */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
-        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 no-print">
-          <div className="flex items-center gap-3">
-            <div className="lg:hidden">
-              <BrandLogo />
-            </div>
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-600">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span>🔒</span>
-                <span>Admin : {userEmail}</span>
-              </span>
+      <div className="flex-1 flex flex-col min-w-0 pb-24 lg:pb-6">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 no-print">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CompanyAvatar logoUrl={org.logoUrl} name={org.name} size={34} />
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-extrabold text-[#0B1F3A] truncate">
+                {org.name || "Mon Entreprise"}
+              </div>
+              <a
+                href={OFFICIAL_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-bold text-emerald-700 hover:underline block truncate"
+              >
+                Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/products"
               className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700"
             >
-              + {labels.productSingular}
+              + Produit
             </Link>
             <Link
               href="/invoices"
@@ -159,39 +231,52 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-4">
-          {org.subscriptionStatus === "expired" || org.trialDaysLeft <= 0 ? (
-            <div className="p-4 rounded-2xl bg-red-600 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
-              <div className="text-xs sm:text-sm font-extrabold">
-                ⚠️ Votre essai est terminé, payez avec Orange Money / MTN MoMo pour continuer - WhatsApp: +23566268503
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-4">
+          {!hideGlobalTrialBanner &&
+          (org.subscriptionStatus === "expired" || org.trialDaysLeft <= 0) ? (
+            <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-400 text-[#0B1F3A] flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+              <div className="text-xs sm:text-sm font-extrabold leading-relaxed">
+                🔒 Votre essai est terminé — Payez votre abonnement avec Orange
+                Money {ORANGE_MONEY_PAY_NUMBER} / MTN MoMo {MTN_MOMO_PAY_NUMBER}.
               </div>
-              <a
-                href="https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20activer%20mon%20abonnement%20par%20Orange%20Money%20%2F%20MTN%20MoMo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-xl bg-white text-red-700 text-xs font-extrabold shrink-0 text-center"
+              <Link
+                href="/app/abonnement"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shrink-0 text-center"
               >
-                💬 Activer sur WhatsApp (+23566268503)
-              </a>
+                Payer mon abonnement
+              </Link>
             </div>
-          ) : org.subscriptionStatus === "trial" ? (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs no-print">
-              <div className="font-bold">
-                🎁 Essai gratuit 7 jours actif ({org.trialDaysLeft} jour(s) restant(s)) — Après 7 jours, réglez par Orange Money / MTN MoMo.
+          ) : !hideGlobalTrialBanner && org.subscriptionStatus === "trial" ? (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-[#0B1F3A] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm no-print">
+              <div className="font-bold leading-relaxed">
+                🎁 Essai gratuit : {org.trialDaysLeft} jour(s) restant(s) -
+                Payez après avec Orange Money {ORANGE_MONEY_PAY_NUMBER} / MTN
+                MoMo {MTN_MOMO_PAY_NUMBER}
               </div>
-              <a
-                href="https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20souscrire%20%C3%A0%20un%20forfait"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-extrabold text-[#128C7E] hover:underline shrink-0"
+              <Link
+                href="/app/abonnement"
+                className="px-4 py-2 rounded-xl bg-[#0B1F3A] text-white text-xs font-extrabold shrink-0 text-center"
               >
-                WhatsApp: +23566268503 →
-              </a>
+                Payer mon abonnement
+              </Link>
             </div>
           ) : null}
 
           {children}
         </main>
+
+        <footer className="px-4 py-4 text-center text-[11px] text-slate-500 border-t border-slate-200 bg-white no-print">
+          Aide WhatsApp :{" "}
+          <a
+            href={OFFICIAL_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-700 font-bold hover:underline"
+          >
+            {OFFICIAL_WHATSAPP_DISPLAY}
+          </a>{" "}
+          | Email : {OFFICIAL_EMAIL}
+        </footer>
       </div>
 
       {/* Navigation mobile */}

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   AFRICA_CITIES,
@@ -20,6 +21,7 @@ interface PublicProductItem {
   category: string;
   city: string;
   shopName: string;
+  shopLogoUrl: string;
   whatsappPhone: string;
   imageUrl: string;
   createdAt: string;
@@ -49,7 +51,7 @@ export default function DiscoverAfricaServicesPage() {
         const { data, error } = await supabase
           .from("social_products")
           .select(
-            "id, name, price, description, category, city, shop_name, whatsapp_phone, image_url, created_at"
+            "id, name, price, description, category, city, shop_name, shop_logo_url, whatsapp_phone, image_url, created_at"
           )
           .order("created_at", { ascending: false })
           .limit(120);
@@ -64,6 +66,7 @@ export default function DiscoverAfricaServicesPage() {
               category: String(row.category ?? "Boutique & Commerce"),
               city: String(row.city || DEFAULT_MERCHANT_CITY),
               shopName: String(row.shop_name || "Commerçant"),
+              shopLogoUrl: String(row.shop_logo_url || ""),
               whatsappPhone: String(
                 row.whatsapp_phone || OFFICIAL_WHATSAPP_DIGITS
               ),
@@ -104,9 +107,9 @@ export default function DiscoverAfricaServicesPage() {
       <PublicNavbar />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-        {/* HERO PUBLIC /decouvrir */}
-        <div className="rounded-3xl bg-slate-50 border border-slate-200 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
+        {/* HERO PUBLIC /decouvrir : chaque élément sur sa propre ligne sur mobile */}
+        <div className="rounded-3xl bg-slate-50 border border-slate-200 p-5 sm:p-8 flex flex-col gap-5">
+          <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold">
               🌍 Place de Marché Afrique — Cameroun &amp; Tchad
             </div>
@@ -120,16 +123,16 @@ export default function DiscoverAfricaServicesPage() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
             <Link
               href="/produits"
-              className="px-5 py-3.5 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-sm font-black text-center shadow-sm"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-sm font-black text-center shadow-sm"
             >
               📣 Publier mon produit
             </Link>
             <Link
               href="/signup"
-              className="px-5 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black text-center shadow-sm"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black text-center shadow-sm"
             >
               ➕ Créer un compte commerçant
             </Link>
@@ -189,21 +192,21 @@ export default function DiscoverAfricaServicesPage() {
             </div>
           </div>
 
-          {/* Raccourcis villes populaires */}
-          <div className="flex flex-wrap gap-2 pt-1">
+          {/* Raccourcis villes populaires : grille propre 2 par ligne sur mobile */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
             {["Toutes", "N'Djamena", "Ngaoundéré", "Garoua", "Douala", "Yaoundé"].map(
               (cityBtn) => (
                 <button
                   key={cityBtn}
                   type="button"
                   onClick={() => setSelectedCity(cityBtn)}
-                  className={`px-3.5 py-2 rounded-full text-xs font-extrabold border transition-all ${
+                  className={`w-full px-3 py-2.5 rounded-xl text-xs font-extrabold border text-center truncate transition-all ${
                     selectedCity === cityBtn
                       ? "bg-[#0B1F3A] text-white border-[#0B1F3A]"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  {cityBtn === "Toutes" ? "🌍 Toutes les villes" : `📍 ${cityBtn}`}
+                  {cityBtn === "Toutes" ? "🌍 Toutes" : `📍 ${cityBtn}`}
                 </button>
               )
             )}
@@ -277,8 +280,13 @@ export default function DiscoverAfricaServicesPage() {
                     </div>
 
                     <div className="p-5 space-y-2">
-                      <div className="text-xs font-bold text-slate-500">
-                        🏪 {item.shopName}
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                        <CompanyAvatar
+                          logoUrl={item.shopLogoUrl}
+                          name={item.shopName}
+                          size={26}
+                        />
+                        <span className="truncate">{item.shopName}</span>
                       </div>
                       <h3 className="text-lg font-black text-[#0B1F3A] leading-snug">
                         {item.name}

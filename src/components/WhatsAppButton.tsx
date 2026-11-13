@@ -66,7 +66,10 @@ export function triggerStandaloneInvoicePdfPrint(
     info.issueDate || new Date().toISOString().slice(0, 10)
   );
 
-  const logoHtml = `<div style="width:70px;height:70px;border-radius:14px;background:#0B1F3A;padding:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${info.merchantLogoUrl || "/logo.png"}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:10px;" /></div>`;
+  const logoInitial = (info.merchantName || "E").trim().charAt(0).toUpperCase();
+  const logoHtml = info.merchantLogoUrl
+    ? `<div style="width:70px;height:70px;border-radius:9999px;background:#ffffff;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img src="${info.merchantLogoUrl}" alt="Logo" style="width:100%;height:100%;object-fit:cover;" /></div>`
+    : `<div style="width:70px;height:70px;border-radius:9999px;background:#059669;color:#ffffff;font-weight:900;font-size:28px;display:flex;align-items:center;justify-content:center;">${logoInitial}</div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -142,7 +145,8 @@ export function triggerStandaloneInvoicePdfPrint(
       </div>
 
       <div class="footer">
-        Merci pour votre confiance — <span style="color:${palette.hex};">${info.merchantName}</span> — Questions ? ${info.merchantEmail || OFFICIAL_EMAIL} - WhatsApp: +235 66 26 85 03
+        Merci pour votre confiance — <span style="color:${palette.hex};">${info.merchantName}</span>
+      <div style="margin-top:6px;font-size:10px;color:#94a3b8;font-weight:500;">Facture créée avec Encaisse</div>
       </div>
     </div>
   </div>

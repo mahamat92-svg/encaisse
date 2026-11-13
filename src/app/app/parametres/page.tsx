@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { useAppState } from "@/components/AppContext";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 import {
+  AFRICA_CITIES,
   BRAND_COLOR_PALETTE,
   BUSINESS_SERVICES,
   COUNTRY_OPTIONS,
@@ -40,6 +42,9 @@ export default function MerchantSettingsFormPage() {
   const [primaryColor, setPrimaryColor] = useState<BrandColorChoice>(
     org.primaryColor || "green"
   );
+  const [footerMessage, setFooterMessage] = useState(
+    org.footerMessage || "Merci pour votre confiance !"
+  );
 
   // Numéros Mobile Money & Clés API Fapshi
   const [mtnMomo, setMtnMomo] = useState(org.mtnMomoNumber);
@@ -68,6 +73,7 @@ export default function MerchantSettingsFormPage() {
     setRccmNiu(org.rccmNiu);
     setSlogan(org.slogan);
     setPrimaryColor(org.primaryColor || "green");
+    setFooterMessage(org.footerMessage || "Merci pour votre confiance !");
     setMtnMomo(org.mtnMomoNumber);
     setOrangeMoney(org.orangeMoneyNumber);
     setFapshiApiUser(org.fapshi.apiUser);
@@ -233,6 +239,7 @@ export default function MerchantSettingsFormPage() {
         region: cleanRegion,
         country: cleanCountry,
         address: cleanAddress,
+        footerMessage: footerMessage.trim(),
       });
 
       const { error: orgErr } = await supabase
@@ -304,23 +311,11 @@ export default function MerchantSettingsFormPage() {
           {/* Upload Logo + Aperçu en direct */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              {logoUrl ? (
-                <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logoUrl}
-                    alt="Logo entreprise"
-                    className="max-w-full max-h-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="w-20 h-20 rounded-2xl text-white flex items-center justify-center text-2xl font-extrabold shrink-0 shadow-sm"
-                  style={{ backgroundColor: activePalette.hex }}
-                >
-                  {(companyName || "E").charAt(0).toUpperCase()}
-                </div>
-              )}
+              <CompanyAvatar
+                logoUrl={logoUrl}
+                name={companyName || "E"}
+                size={80}
+              />
 
               <div className="space-y-1">
                 <div className="text-xs font-extrabold text-[#0B1F3A]">
@@ -449,16 +444,38 @@ export default function MerchantSettingsFormPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ville (saisie manuelle) *
+                Ville *
               </label>
-              <input
-                type="text"
-                required
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Ngaoundéré"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-              />
+              <select
+                value={AFRICA_CITIES.includes(city as (typeof AFRICA_CITIES)[number]) ? city : "Autre"}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "Autre") {
+                    if (AFRICA_CITIES.includes(city as (typeof AFRICA_CITIES)[number])) {
+                      setCity("");
+                    }
+                  } else {
+                    setCity(v);
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white font-semibold text-[#0B1F3A]"
+              >
+                {AFRICA_CITIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              {!AFRICA_CITIES.includes(city as (typeof AFRICA_CITIES)[number]) || city === "Autre" ? (
+                <input
+                  type="text"
+                  required
+                  value={city === "Autre" ? "" : city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Saisis ta ville..."
+                  className="mt-2 w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                />
+              ) : null}
             </div>
 
             <div>
@@ -513,6 +530,19 @@ export default function MerchantSettingsFormPage() {
                 value={rccmNiu}
                 onChange={(e) => setRccmNiu(e.target.value)}
                 placeholder="Ex: RC/NGA/2026/B/001 · NIU M0126..."
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Pied de facture (ex: Merci pour votre confiance !)
+              </label>
+              <input
+                type="text"
+                value={footerMessage}
+                onChange={(e) => setFooterMessage(e.target.value)}
+                placeholder="Merci pour votre confiance !"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
             </div>

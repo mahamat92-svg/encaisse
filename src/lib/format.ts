@@ -404,14 +404,28 @@ export function buildInvoiceWhatsAppMessage(params: {
   merchantCity?: string;
   merchantPhone?: string;
   merchantEmail?: string;
+  footerMessage?: string;
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
   const amt = formatAmountNumber(params.amount);
-  const merchant = params.merchantName?.trim() || "InnovTech MHA Infinity";
-  const email = params.merchantEmail?.trim() || OFFICIAL_EMAIL;
-  const url = params.paymentUrl.trim();
-  return `Bonjour ${client}, voici votre facture ${num} de ${amt} XAF de ${merchant}. Payez ici: ${url}. Merci - ${merchant} - Email: ${email} - WhatsApp: +23566268503`;
+  const merchant = params.merchantName?.trim() || "Ma Boutique";
+  const city = (params.merchantCity || DEFAULT_MERCHANT_CITY).split(",")[0].trim();
+  const merchantWa = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
+  const thanks = params.footerMessage?.trim() || "Merci pour votre confiance !";
+  const productLine = params.productName?.trim()
+    ? `\nProduits : ${params.productName.trim()} - ${amt} XAF`
+    : "";
+
+  return `*${merchant.toUpperCase()} - ${city}*
+📍 ${city} | WhatsApp: ${merchantWa}
+
+Bonjour ${client},
+Voici votre facture ${num} de ${amt} XAF de ${merchant} - ${city}.${productLine}
+Reste à payer : ${amt} XAF
+Pour payer : ${params.paymentUrl.trim()}
+Orange Money : ${ORANGE_MONEY_PAY_NUMBER} / MTN MoMo : ${MTN_MOMO_PAY_NUMBER} (${PAYMENT_BENEFICIARY_NAME})
+${thanks} - ${merchant}, WhatsApp : ${merchantWa}`;
 }
 
 /**

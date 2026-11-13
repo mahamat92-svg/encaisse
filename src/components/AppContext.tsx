@@ -62,6 +62,7 @@ export interface ActiveOrgData {
   email: string;
   logoUrl: string;
   slogan: string;
+  footerMessage: string;
   primaryColor: BrandColorChoice;
   rccmNiu: string;
   niu: string;
@@ -166,6 +167,7 @@ interface FooterMeta {
   region: string;
   country: string;
   address: string;
+  footerMessage: string;
 }
 
 function isValidBusinessType(v: unknown): v is BusinessType {
@@ -192,6 +194,7 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
     region: DEFAULT_MERCHANT_REGION,
     country: DEFAULT_MERCHANT_COUNTRY,
     address: "",
+    footerMessage: "",
   };
   if (!footerNote) return fallback;
   try {
@@ -234,6 +237,10 @@ function parseFooterMeta(footerNote: string | null | undefined): FooterMeta {
             ? parsed.country.trim()
             : DEFAULT_MERCHANT_COUNTRY,
         address: typeof parsed.address === "string" ? parsed.address.trim() : "",
+        footerMessage:
+          typeof parsed.footerMessage === "string"
+            ? parsed.footerMessage.trim()
+            : "",
       };
     }
   } catch {
@@ -711,6 +718,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           OFFICIAL_EMAIL,
         logoUrl: ms?.logo_url || dbOrg.logo_url || footerMeta.logoUrl || "",
         slogan: ms?.slogan?.trim() || footerMeta.slogan || "",
+        footerMessage: footerMeta.footerMessage || "",
         primaryColor: finalColor,
         rccmNiu:
           ms?.rccm_niu?.trim() ||
@@ -778,6 +786,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     email: OFFICIAL_EMAIL,
     logoUrl: "",
     slogan: "",
+    footerMessage: "",
     primaryColor: "green",
     rccmNiu: "",
     fapshi: { apiUser: "", apiKey: "", environment: "live" },

@@ -23,6 +23,7 @@ import {
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAppState } from "@/components/AppContext";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { WhatsAppShareButton } from "@/components/WhatsAppButton";
 
 interface InvoiceDataView {
@@ -442,16 +443,11 @@ function ProfessionalInvoiceViewInner({
               {/* Gauche : Logo + Nom Entreprise + Coordonnées */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-[70px] h-[70px] rounded-2xl bg-[#0B1F3A] border border-slate-800 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={invoice.merchant.logoUrl || "/logo.png"}
-                      alt={invoice.merchant.name}
-                      width={70}
-                      height={70}
-                      className="w-full h-full object-contain rounded-xl"
-                    />
-                  </div>
+                  <CompanyAvatar
+                    logoUrl={invoice.merchant.logoUrl}
+                    name={invoice.merchant.name || "Entreprise"}
+                    size={70}
+                  />
 
                   <div>
                     <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">
@@ -842,7 +838,7 @@ function ProfessionalInvoiceViewInner({
             {/* FOOTER : "Merci pour votre confiance - [Nom entreprise]" + PDF / WhatsApp */}
             <div className="pt-6 border-t border-slate-200 space-y-5">
               <div className="text-center text-xs sm:text-sm font-bold text-slate-700">
-                Merci pour votre confiance —{" "}
+                {invoice.merchant.footerNote || "Merci pour votre confiance"} —{" "}
                 <span style={{ color: palette.hex }}>
                   {invoice.merchant.name}
                 </span>
@@ -898,26 +894,8 @@ function ProfessionalInvoiceViewInner({
 
               {/* Bas de page /pay/[invoice_id] */}
               <div className="pt-4 border-t border-slate-100 text-center space-y-1">
-                <div className="text-xs font-bold text-slate-600">
-                  Questions ?{" "}
-                  <a
-                    href={OFFICIAL_WHATSAPP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#128C7E] underline"
-                  >
-                    WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
-                  </a>{" "}
-                  - Ngaoundéré, Cameroun
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Email :{" "}
-                  <a
-                    href={`mailto:${OFFICIAL_EMAIL}`}
-                    className="text-[#0B1F3A] underline"
-                  >
-                    {OFFICIAL_EMAIL}
-                  </a>
+                <div className="text-[11px] text-slate-400 font-medium">
+                  Facture créée avec Encaisse
                 </div>
               </div>
             </div>

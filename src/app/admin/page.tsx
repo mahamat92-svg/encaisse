@@ -482,6 +482,8 @@ export default function AdminDashboardPage() {
                   paymentUrl: payUrl,
                   merchantName: org.name,
                   merchantCity: org.city,
+                  merchantPhone: org.phone,
+                  footerMessage: org.footerMessage,
                 });
 
                 return (
@@ -502,6 +504,12 @@ export default function AdminDashboardPage() {
                       <span className="font-extrabold text-sm text-[#0B1F3A]">
                         {formatCFA(doc.total)}
                       </span>
+                      <Link
+                        href={`/invoices/${doc.publicToken}`}
+                        className="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 font-extrabold text-[#0B1F3A]"
+                      >
+                        👁️ Aperçu de ma facture
+                      </Link>
                       <Link
                         href={`/pay/${doc.publicToken}`}
                         className="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 font-bold text-slate-700"

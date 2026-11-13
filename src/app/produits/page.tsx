@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { useAppState } from "@/components/AppContext";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -26,6 +27,7 @@ interface SocialProduct {
   category: string;
   city: string;
   shopName: string;
+  shopLogoUrl: string;
   whatsappPhone: string;
   imageUrl: string;
   whatsappCount: number;
@@ -186,6 +188,7 @@ export default function PublishProductsPage() {
           category: String(row.category ?? "Boutique & Commerce"),
           city: String(row.city || org.city || DEFAULT_MERCHANT_CITY),
           shopName: String(row.shop_name || org.name || "Ma Boutique"),
+          shopLogoUrl: String(row.shop_logo_url || org.logoUrl || ""),
           whatsappPhone: String(
             row.whatsapp_phone || org.phone || OFFICIAL_WHATSAPP_DISPLAY
           ),
@@ -316,6 +319,7 @@ export default function PublishProductsPage() {
           category,
           city: resolvedCity,
           shop_name: shopName,
+          shop_logo_url: org.logoUrl || "",
           whatsapp_phone: merchantWa,
           image_url: publicImageUrl,
         })
@@ -337,6 +341,7 @@ export default function PublishProductsPage() {
             category: String(inserted.category ?? category),
             city: String(inserted.city ?? resolvedCity),
             shopName: String(inserted.shop_name ?? shopName),
+            shopLogoUrl: String(inserted.shop_logo_url ?? org.logoUrl ?? ""),
             whatsappPhone: String(inserted.whatsapp_phone ?? merchantWa),
             imageUrl: String(inserted.image_url),
             whatsappCount: 0,
@@ -484,30 +489,26 @@ ${desc}
     <WorkspaceShell>
       <div className="min-h-screen bg-white rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6 shadow-sm">
         {/* EN-TÊTE MOBILE-FIRST */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">
-                {isSubscriptionPaid
-                  ? "✅ Abonnement : Payé (Publication activée)"
-                  : org.subscriptionStatus === "expired"
-                    ? "🔒 Abonnement : Expiré"
-                    : "⏳ Abonnement : En attente"}
-              </span>
-              <Link
-                href="/decouvrir"
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-[#0B1F3A] border border-blue-200 hover:bg-blue-100"
-              >
-                🌍 Voir la page publique /decouvrir →
-              </Link>
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5">
+          <div className="flex items-center gap-3 min-w-0">
+            <CompanyAvatar logoUrl={org.logoUrl} name={org.name} size={42} />
+            <div className="min-w-0">
+              <div className="text-xs font-extrabold text-emerald-700 truncate">
+                {org.name || "Ma Boutique"}
+              </div>
+              <h1 className="text-xl sm:text-3xl font-black text-[#0B1F3A]">
+                📣 Publier mes Produits / Services en 1 clic
+              </h1>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#0B1F3A]">
-              📣 Publier mes Produits / Services en 1 clic
-            </h1>
-            <p className="text-sm text-slate-600 mt-1">
-              Ajoutez votre produit ou service et publiez en 1 clic sur
-              WhatsApp, TikTok et Facebook.
-            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/decouvrir"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-extrabold bg-blue-50 text-[#0B1F3A] border border-blue-200 hover:bg-blue-100"
+            >
+              🌍 Voir la page publique /decouvrir →
+            </Link>
           </div>
 
           <button
@@ -516,7 +517,7 @@ ${desc}
               setShowForm((prev) => !prev);
               setFormError(null);
             }}
-            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-base font-black shadow-md transition-colors"
+            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-base font-black shadow-md transition-colors text-center"
           >
             {showForm
               ? "✖ Fermer le formulaire"
@@ -524,35 +525,27 @@ ${desc}
           </button>
         </div>
 
-        {/* RÈGLE ABONNEMENT : BLOQUÉ SI NON PAYÉ */}
+        {/* RÈGLE ABONNEMENT : UNE SEULE CARTE SIMPLE (sans répétition ni bouton WhatsApp en double) */}
         {!isSubscriptionPaid ? (
-          <div className="p-5 sm:p-6 rounded-2xl bg-amber-50 border-2 border-amber-400 space-y-3">
-            <div className="text-base sm:text-lg font-black text-[#0B1F3A]">
-              🔒 Publication bloquée — Abonnement requis
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border-2 border-amber-400 space-y-3">
+            <div className="text-sm sm:text-base font-black text-[#0B1F3A]">
+              🔒 Publication bloquée — Payez votre abonnement pour publier
             </div>
-            <p className="text-sm sm:text-base font-bold text-amber-950 leading-relaxed">
+            <p className="text-xs sm:text-sm font-bold text-amber-950 leading-relaxed">
               {SUBSCRIPTION_BLOCK_MSG}
             </p>
             {blockedAlert ? (
-              <div className="p-3 rounded-xl bg-red-100 border border-red-300 text-red-900 text-sm font-extrabold">
+              <div className="p-3 rounded-xl bg-red-100 border border-red-300 text-red-900 text-xs sm:text-sm font-extrabold">
                 ⚠️ {blockedAlert}
               </div>
             ) : null}
-            <div className="flex flex-wrap gap-3 pt-1">
+            <div>
               <Link
                 href="/app/abonnement"
-                className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black shadow-sm"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black shadow-sm"
               >
                 💳 Payer mon abonnement
               </Link>
-              <a
-                href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-5 py-3 rounded-xl bg-[#25D366] hover:bg-[#1fb857] text-white text-sm font-black shadow-sm"
-              >
-                💬 Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
-              </a>
             </div>
           </div>
         ) : null}
@@ -768,8 +761,15 @@ ${desc}
                           {formatCFA(product.price)}
                         </div>
                       </div>
-                      <div className="text-xs font-bold text-slate-500">
-                        🏪 {product.shopName} · 📍 {product.city}
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                        <CompanyAvatar
+                          logoUrl={product.shopLogoUrl || org.logoUrl}
+                          name={product.shopName}
+                          size={24}
+                        />
+                        <span className="truncate">
+                          {product.shopName} · 📍 {product.city}
+                        </span>
                       </div>
                       {product.description ? (
                         <p className="text-sm text-slate-600 leading-relaxed">

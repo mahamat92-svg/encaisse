@@ -20,6 +20,7 @@ import {
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAppState } from "@/components/AppContext";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 
 function SignupCardContent() {
   const router = useRouter();
@@ -43,9 +44,24 @@ function SignupCardContent() {
   );
   const [businessType, setBusinessType] = useState<BusinessType>("boutique");
   const [selectedPlan, setSelectedPlan] = useState<string>(planParam);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setLogoPreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(() => {
     if (
@@ -164,6 +180,28 @@ function SignupCardContent() {
       }
 
       if (activeUser) {
+        // Upload optionnel du logo de l'entreprise vers Supabase Storage ("logos")
+        let uploadedLogoUrl = logoPreview || "";
+        if (logoFile) {
+          try {
+            const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
+            const path = `${activeUser.id}/logo-${Date.now()}.${ext}`;
+            const { error: uploadErr } = await supabase.storage
+              .from("logos")
+              .upload(path, logoFile, { upsert: true });
+            if (!uploadErr) {
+              const { data: pubData } = supabase.storage
+                .from("logos")
+                .getPublicUrl(path);
+              if (pubData?.publicUrl) {
+                uploadedLogoUrl = pubData.publicUrl;
+              }
+            }
+          } catch {
+            // Garde logoPreview en fallback si le bucket n'est pas encore prêt
+          }
+        }
+
         // 2. Créer l'organisation dans Supabase avec la ville manuelle saisie
         let orgId: string | null = null;
         const { data: createdOrgId } = await supabase.rpc(
@@ -183,6 +221,7 @@ function SignupCardContent() {
           await supabase
             .from("organizations")
             .update({
+              logo_url: uploadedLogoUrl,
               footer_note: JSON.stringify({
                 businessType,
                 serviceCategory,
@@ -191,6 +230,7 @@ function SignupCardContent() {
                 region: DEFAULT_MERCHANT_REGION,
                 country: cleanCountry,
                 primaryColor: "green",
+                logoUrl: uploadedLogoUrl,
               }),
             })
             .eq("id", orgId);
@@ -214,6 +254,7 @@ function SignupCardContent() {
               plan: "trial",
               email: cleanEmail,
               primary_color: "green",
+              logo_url: uploadedLogoUrl,
               created_at: nowIso,
               updated_at: nowIso,
             },
@@ -230,6 +271,7 @@ function SignupCardContent() {
               address_city: `${cleanCity}, ${cleanCountry}`,
               email: cleanEmail,
               primary_color: "green",
+              logo_url: uploadedLogoUrl,
               updated_at: nowIso,
             },
             { onConflict: "user_id" }
@@ -334,6 +376,31 @@ function SignupCardContent() {
                 placeholder="Ex: Boutique Bouba"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
               />
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+            <CompanyAvatar
+              logoUrl={logoPreview}
+              name={companyName || "E"}
+              size={52}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-slate-800 mb-1">
+                Logo de ton entreprise (photo)
+              </div>
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 cursor-pointer hover:bg-slate-100">
+                📷 Choisir une photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+              </label>
+              <div className="text-[11px] text-slate-500 mt-1">
+                Optionnel — affiché sur tes factures et produits.
+              </div>
             </div>
           </div>
 
@@ -458,8 +525,8 @@ function SignupCardContent() {
                   <label
                     key={cat.id}
                     className={`w-full min-w-0 cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 text-xs transition-all ${checked
-                        ? "border-emerald-600 bg-emerald-50 text-[#0B1F3A] shadow-xs"
-                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
+                      ? "border-emerald-600 bg-emerald-50 text-[#0B1F3A] shadow-xs"
+                      : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
                       }`}
                   >
                     <input

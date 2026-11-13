@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppState } from "./AppContext";
@@ -68,26 +68,26 @@ export function PublicNavbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 no-print">
-      {/* Bandeau supérieur de contact : Localisation manuelle + Email officiel + WhatsApp */}
-      <div className="bg-[#0B1F3A] text-slate-200 text-[11px] sm:text-xs py-1.5 px-4 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span className="font-semibold">
+      {/* Bandeau supérieur propre sur 2 lignes max sur mobile, jamais collé au logo */}
+      <div className="bg-[#0B1F3A] text-slate-200 text-[11px] py-1.5 px-3 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="font-semibold truncate">
             📍 {DEFAULT_MERCHANT_LOCATION_LABEL}
-          </span>
-          <div className="flex flex-wrap items-center gap-3">
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <a
               href={`mailto:${OFFICIAL_EMAIL}`}
-              className="font-bold text-emerald-300 hover:underline"
+              className="font-bold text-emerald-300 hover:underline truncate"
             >
-              📧 Email: {OFFICIAL_EMAIL}
+              📧 {OFFICIAL_EMAIL}
             </a>
             <a
               href={OFFICIAL_WHATSAPP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-bold text-white hover:underline"
+              className="font-bold text-white hover:underline whitespace-nowrap"
             >
-              📱 WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
+              Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
             </a>
           </div>
         </div>
@@ -239,71 +239,107 @@ export function PublicFooter() {
           </ul>
         </div>
 
-        {/* Section "Contactez-nous" avec Email officiel + WhatsApp + Ngaoundéré, Adamawa - Cameroun */}
+        {/* Section "Contactez-nous" : lien texte propre sans gros bouton WhatsApp en double */}
         <div className="md:col-span-4 bg-[#132D54] border border-slate-700/80 rounded-2xl p-5 space-y-3">
           <h3 className="text-base font-extrabold text-white">
             📞 Contactez-nous
           </h3>
-          <ul className="space-y-2 text-xs sm:text-sm text-slate-200">
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-400 font-bold">Email :</span>
-              <a
-                href={`mailto:${OFFICIAL_EMAIL}`}
-                className="font-extrabold text-white hover:underline break-all"
-              >
-                {OFFICIAL_EMAIL}
-              </a>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-400 font-bold">WhatsApp :</span>
+          <div className="text-xs sm:text-sm text-slate-200 space-y-1.5 leading-relaxed">
+            <div>
               <a
                 href={OFFICIAL_WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="font-extrabold text-[#25D366] hover:underline"
+              >
+                Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
+            </div>
+            <div className="break-all">
+              Email :{" "}
+              <a
+                href={`mailto:${OFFICIAL_EMAIL}`}
                 className="font-extrabold text-white hover:underline"
               >
-                {OFFICIAL_WHATSAPP_DISPLAY}
+                {OFFICIAL_EMAIL}
               </a>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-emerald-400 font-bold">Ville :</span>
-              <span className="text-white">{DEFAULT_MERCHANT_LOCATION_LABEL}</span>
-            </li>
-          </ul>
-          <div className="pt-2">
-            <a
-              href={OFFICIAL_WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white text-xs sm:text-sm font-extrabold shadow-md transition-colors"
-            >
-              <WhatsAppIcon className="w-4 h-4 shrink-0" />
-              <span>Discuter sur WhatsApp</span>
-            </a>
+            </div>
+            <div>Ville : {DEFAULT_MERCHANT_LOCATION_LABEL}</div>
           </div>
         </div>
       </div>
 
-      <div className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-400 px-4">
-        © {new Date().getFullYear()} InnovTech MHA Infinity — 📍 {DEFAULT_MERCHANT_LOCATION_LABEL} · 📧 {OFFICIAL_EMAIL} · 📱 WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
+      <div className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-300 px-4">
+        Aide WhatsApp :{" "}
+        <a
+          href={OFFICIAL_WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#25D366] font-bold hover:underline"
+        >
+          {OFFICIAL_WHATSAPP_DISPLAY}
+        </a>{" "}
+        | Email :{" "}
+        <a href={`mailto:${OFFICIAL_EMAIL}`} className="text-white hover:underline">
+          {OFFICIAL_EMAIL}
+        </a>
       </div>
     </footer>
   );
 }
 
 /**
- * Bouton flottant WhatsApp vert en bas à droite sur TOUTES les pages
+ * UNIQUE bouton WhatsApp flottant dans tout le site :
+ * Petit, rond, en bas à droite, icône seule + petit point vert.
+ * Disparaît automatiquement quand le clavier téléphone s'ouvre.
  */
 export function FloatingWhatsAppButton() {
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    function handleFocusIn(e: FocusEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        setKeyboardOpen(true);
+      }
+    }
+    function handleFocusOut() {
+      setTimeout(() => {
+        const activeTag = document.activeElement?.tagName;
+        if (
+          activeTag !== "INPUT" &&
+          activeTag !== "TEXTAREA" &&
+          activeTag !== "SELECT"
+        ) {
+          setKeyboardOpen(false);
+        }
+      }, 150);
+    }
+
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+    return () => {
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  if (keyboardOpen) return null;
+
   return (
     <a
       href="https://wa.me/23566268503"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="WhatsApp +235 66 26 85 03"
-      className="fixed bottom-18 lg:bottom-6 right-4 sm:right-6 z-50 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs sm:text-sm shadow-xl border-2 border-white no-print"
+      aria-label="Aide WhatsApp"
+      title="Aide WhatsApp : +235 66 26 85 03"
+      className="fixed bottom-20 lg:bottom-6 right-4 z-40 w-12 h-12 rounded-full bg-[#25D366] hover:bg-[#1EBE5D] text-white flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-105 no-print"
     >
-      <span>💬 WhatsApp +235 66 26 85 03</span>
+      <WhatsAppIcon className="w-6 h-6" />
+      <span
+        className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white"
+        aria-hidden="true"
+      />
     </a>
   );
 }

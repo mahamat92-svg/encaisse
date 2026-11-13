@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="min-h-screen flex flex-col antialiased">
+      <body className="min-h-screen flex flex-col antialiased pb-[90px]">
         <AppProvider>
           {children}
           <FloatingWhatsAppButton />
