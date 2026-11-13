@@ -22,6 +22,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/admin", label: "Vue Admin Globale", icon: "👑" },
     { href: "/dashboard", label: "Tableau de bord", icon: "📊" },
+    { href: "/produits", label: "Publier Produits (1 clic)", icon: "📣" },
     { href: "/products", label: labels.products, icon: "📦" },
     { href: "/invoices", label: "Factures", icon: "🧾" },
     { href: "/clients", label: labels.clients, icon: "👥" },
@@ -37,7 +38,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
 
   const mobileBottomItems = [
     { href: "/admin", label: "Admin", icon: "👑" },
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/produits", label: "Publier", icon: "📣" },
     { href: "/products", label: labels.products, icon: "📦" },
     { href: "/invoices", label: "Factures", icon: "🧾" },
     { href: "/clients", label: labels.clients, icon: "👥" },
