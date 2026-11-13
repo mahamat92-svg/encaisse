@@ -221,6 +221,77 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Section : Pourquoi Encaisse est nécessaire pour toi ? */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-white border-b border-slate-200">
+        <div className="max-w-5xl mx-auto space-y-8">
+          <div className="text-center space-y-3">
+            <span className="inline-block px-3.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-extrabold uppercase tracking-wider">
+              Afrique · Cameroun &amp; Tchad
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black text-[#0B1F3A]">
+              Pourquoi Encaisse est nécessaire pour toi ?
+            </h2>
+            <p className="text-base sm:text-lg font-bold text-slate-700 max-w-3xl mx-auto">
+              Tu es boutiquier, restaurateur, coiffeuse, moto-taxi à N&apos;Djamena, Garoua, Douala ou Ngaoundéré ?
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+            <div className="p-6 rounded-2xl bg-red-50 border-2 border-red-200 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-red-600 text-white font-black flex items-center justify-center text-base">
+                1
+              </div>
+              <p className="text-sm sm:text-base font-extrabold text-[#0B1F3A] leading-snug">
+                Tu perds tes clients car personne ne voit tes produits
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-red-50 border-2 border-red-200 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-red-600 text-white font-black flex items-center justify-center text-base">
+                2
+              </div>
+              <p className="text-sm sm:text-base font-extrabold text-[#0B1F3A] leading-snug">
+                Tu perds ton argent car tu vends à crédit dans un cahier qui se perd
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-red-50 border-2 border-red-200 space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-red-600 text-white font-black flex items-center justify-center text-base">
+                3
+              </div>
+              <p className="text-sm sm:text-base font-extrabold text-[#0B1F3A] leading-snug">
+                Tu perds ton temps à écrire des factures à la main
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8 rounded-3xl bg-emerald-50 border-2 border-emerald-500 text-center space-y-4 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wider text-emerald-700">
+              ✅ La solution simple
+            </div>
+            <p className="text-base sm:text-xl font-extrabold text-[#0B1F3A] leading-relaxed max-w-3xl mx-auto">
+              Avec Encaisse : Tu publies ta photo en 1 clic sur WhatsApp, TikTok, Facebook. Ton client paie par Orange Money{" "}
+              <span className="text-[#FF7900]">640 633 034</span> ou MTN{" "}
+              <span className="text-[#b58900]">651 465 708</span>. Tu vois tout sur ton téléphone.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 pt-1">
+              <Link
+                href="/signup"
+                className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-md"
+              >
+                🚀 Créer mon compte gratuit
+              </Link>
+              <Link
+                href="/decouvrir"
+                className="px-6 py-3.5 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white font-black text-sm sm:text-base shadow-md"
+              >
+                🌍 Découvrir les produits
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Section Nos 6 Services Métiers */}
       <section className="py-14 px-4 sm:px-6 bg-[#F8FAFC]">
         <div className="max-w-7xl mx-auto space-y-8">
