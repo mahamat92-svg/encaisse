@@ -35,6 +35,20 @@ export interface FapshiConfig {
   environment: "sandbox" | "live";
 }
 
+export interface PendingPaymentSubmission {
+  id: string;
+  orgId: string;
+  documentId: string;
+  documentNumber: string;
+  clientName: string;
+  amount: number;
+  payerPhone: string;
+  transactionCode: string;
+  operator: "orange_money" | "mtn_momo";
+  status: "pending" | "validated" | "rejected";
+  createdAt: string;
+}
+
 export interface ActiveOrgData {
   id: string;
   name: string;
@@ -66,6 +80,7 @@ export interface ActiveOrgData {
   documents: DemoDocument[];
   payments: DemoPayment[];
   reminders: DemoReminder[];
+  pendingSubmissions: PendingPaymentSubmission[];
   isLiveDb: boolean;
 }
 
@@ -133,6 +148,10 @@ interface AppState {
   recordPaymentRecord: (
     input: NewPaymentInput
   ) => Promise<{ ok: boolean; error?: string; receiptNumber?: string }>;
+  reviewPaymentSubmission: (
+    submissionId: string,
+    action: "validate" | "reject"
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 interface FooterMeta {
@@ -370,6 +389,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         remRes,
         merchantRes,
         subRes,
+        pendingSubRes,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -410,6 +430,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle(),
+        supabase
+          .from("payment_submissions")
+          .select("*")
+          .eq("org_id", dbOrg.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
       ]);
 
       const balanceByClient = new Map<
@@ -632,6 +658,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const resolvedAddress =
         ms?.address?.trim() || footerMeta.address || "";
 
+      const mappedPendingSubmissions: PendingPaymentSubmission[] = (
+        pendingSubRes?.data ?? []
+      ).map(
+        (ps: {
+          id: string;
+          org_id: string;
+          document_id: string;
+          document_number: string;
+          client_name: string;
+          amount: number;
+          payer_phone: string;
+          transaction_code: string;
+          operator: string;
+          status: string;
+          created_at: string;
+        }) => ({
+          id: ps.id,
+          orgId: ps.org_id,
+          documentId: ps.document_id,
+          documentNumber: ps.document_number,
+          clientName: ps.client_name,
+          amount: Number(ps.amount ?? 0),
+          payerPhone: ps.payer_phone,
+          transactionCode: ps.transaction_code,
+          operator: ps.operator === "mtn_momo" ? "mtn_momo" : "orange_money",
+          status:
+            ps.status === "validated" || ps.status === "rejected"
+              ? ps.status
+              : "pending",
+          createdAt: ps.created_at,
+        })
+      );
+
       setLiveOrg({
         id: dbOrg.id,
         name: ms?.company_name?.trim() || dbOrg.name,
@@ -673,6 +732,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         documents: mappedDocs,
         payments: mappedPayments,
         reminders: mappedReminders,
+        pendingSubmissions: mappedPendingSubmissions,
         isLiveDb: true,
       });
     } catch {
@@ -726,6 +786,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       Date.now() + 7 * 24 * 60 * 60 * 1000
     ).toISOString(),
     trialDaysLeft: 7,
+    pendingSubmissions: [],
     isLiveDb: false,
   };
 
@@ -1005,6 +1066,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [liveOrg, refreshOrgData]
   );
 
+  const reviewPaymentSubmission = useCallback(
+    async (
+      submissionId: string,
+      action: "validate" | "reject"
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!liveOrg) {
+        return {
+          ok: false,
+          error: "Veuillez vous connecter pour valider un paiement.",
+        };
+      }
+      const sub = liveOrg.pendingSubmissions.find((s) => s.id === submissionId);
+      if (!sub) {
+        return { ok: false, error: "Paiement en attente introuvable." };
+      }
+
+      const supabase = createClient();
+
+      if (action === "validate") {
+        const doc = liveOrg.documents.find((d) => d.id === sub.documentId);
+        if (!doc) {
+          return { ok: false, error: "Facture associée introuvable." };
+        }
+        const payAmount = doc.balance > 0 ? Math.min(sub.amount, doc.balance) : sub.amount;
+        if (payAmount > 0 && doc.balance > 0) {
+          const { error: rpcErr } = await supabase.rpc("record_payment", {
+            p_org: liveOrg.id,
+            p_client: doc.clientId,
+            p_amount: payAmount,
+            p_method: sub.operator,
+            p_reference: sub.transactionCode,
+            p_document: doc.id,
+            p_note: `Mobile Money ${sub.payerPhone}`,
+          });
+          if (rpcErr && !rpcErr.message.includes("DUPLICATE_REFERENCE")) {
+            return { ok: false, error: rpcErr.message };
+          }
+        }
+      }
+
+      const { error: updErr } = await supabase
+        .from("payment_submissions")
+        .update({
+          status: action === "validate" ? "validated" : "rejected",
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", submissionId);
+
+      if (updErr) {
+        return { ok: false, error: updErr.message };
+      }
+
+      await refreshOrgData();
+      return { ok: true };
+    },
+    [liveOrg, refreshOrgData]
+  );
+
   return (
     <AppContext.Provider
       value={{
@@ -1025,6 +1144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteCatalogRecord,
         createDocumentRecord,
         recordPaymentRecord,
+        reviewPaymentSubmission,
       }}
     >
       {children}

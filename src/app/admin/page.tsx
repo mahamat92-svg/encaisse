@@ -18,6 +18,7 @@ export default function AdminDashboardPage() {
     addCatalogRecord,
     deleteCatalogRecord,
     createDocumentRecord,
+    reviewPaymentSubmission,
   } = useAppState();
   const labels = getBusinessTypeLabels(org.businessType);
 
@@ -33,8 +34,29 @@ export default function AdminDashboardPage() {
   const [invProduct, setInvProduct] = useState("");
   const [invAmount, setInvAmount] = useState("");
   const [savingInv, setSavingInv] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function handleReviewPayment(
+    submissionId: string,
+    action: "validate" | "reject"
+  ) {
+    setFeedback(null);
+    setErrorMsg(null);
+    setReviewingId(submissionId);
+    const res = await reviewPaymentSubmission(submissionId, action);
+    setReviewingId(null);
+    if (!res.ok) {
+      setErrorMsg(res.error || "Erreur lors du traitement du paiement.");
+      return;
+    }
+    setFeedback(
+      action === "validate"
+        ? "✅ Paiement validé ! La facture est maintenant marquée comme Payée."
+        : "❌ Paiement refusé."
+    );
+  }
 
   const totalRevenue = org.documents
     .filter((d) => d.docType === "invoice")
@@ -216,6 +238,118 @@ export default function AdminDashboardPage() {
               Actifs au catalogue
             </div>
           </div>
+        </div>
+
+        {/* PAIEMENTS EN ATTENTE DE VALIDATION (Mobile Money Cameroun) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-extrabold text-sm sm:text-base text-[#0B1F3A]">
+                ⏳ Paiements en attente de validation
+              </h2>
+              <p className="text-xs text-slate-500">
+                Vérifiez le SMS Orange Money / MTN MoMo reçu puis cliquez sur
+                Valider ou Refuser.
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800">
+              {org.pendingSubmissions.length} en attente
+            </span>
+          </div>
+
+          {org.pendingSubmissions.length === 0 ? (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 text-center">
+              Aucun paiement Mobile Money en attente de validation pour le
+              moment.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {org.pendingSubmissions.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                >
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 flex-1 text-xs">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Nom client
+                      </div>
+                      <div className="font-extrabold text-[#0B1F3A]">
+                        {sub.clientName}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Facture
+                      </div>
+                      <div className="font-extrabold text-slate-900">
+                        {sub.documentNumber}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Montant
+                      </div>
+                      <div className="font-extrabold text-emerald-700">
+                        {formatCFA(sub.amount)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Numéro qui a payé
+                      </div>
+                      <div className="font-bold text-slate-800">
+                        {sub.payerPhone}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Code transaction
+                      </div>
+                      <div className="font-mono font-extrabold text-slate-900">
+                        {sub.transactionCode}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase text-slate-500">
+                        Opérateur
+                      </div>
+                      <span
+                        className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
+                          sub.operator === "orange_money"
+                            ? "bg-[#FF7900] text-white"
+                            : "bg-[#FFCC00] text-[#0B1F3A]"
+                        }`}
+                      >
+                        {sub.operator === "orange_money"
+                          ? "Orange Money"
+                          : "MTN MoMo"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={reviewingId === sub.id}
+                      onClick={() => handleReviewPayment(sub.id, "validate")}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-colors disabled:opacity-50"
+                    >
+                      {reviewingId === sub.id ? "..." : "✅ Valider"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewingId === sub.id}
+                      onClick={() => handleReviewPayment(sub.id, "reject")}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold transition-colors disabled:opacity-50"
+                    >
+                      ❌ Refuser
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actions rapides Admin : Créer Facture + Créer Produit */}

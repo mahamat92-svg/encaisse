@@ -10,10 +10,15 @@ import {
   DEFAULT_MERCHANT_LOCATION_LABEL,
   formatCFA,
   formatDate,
+  MTN_MOMO_PAY_DIGITS,
+  MTN_MOMO_PAY_NUMBER,
   OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
   OFFICIAL_WHATSAPP_DISPLAY,
   OFFICIAL_WHATSAPP_URL,
+  ORANGE_MONEY_PAY_DIGITS,
+  ORANGE_MONEY_PAY_NUMBER,
+  PAYMENT_BENEFICIARY_NAME,
   type BrandColorChoice,
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -49,6 +54,15 @@ interface InvoiceDataView {
     unitPrice: number;
     total: number;
   }>;
+  pendingSubmission?: {
+    id: string;
+    operator: "orange_money" | "mtn_momo";
+    payerPhone: string;
+    transactionCode: string;
+    amount: number;
+    status: string;
+    createdAt: string;
+  } | null;
 }
 
 function ProfessionalInvoiceViewInner({
@@ -63,7 +77,13 @@ function ProfessionalInvoiceViewInner({
 
   const [invoice, setInvoice] = useState<InvoiceDataView | null>(null);
   const [loading, setLoading] = useState(true);
-  const [payingFapshi, setPayingFapshi] = useState(false);
+  const [selectedOperator, setSelectedOperator] = useState<
+    "orange_money" | "mtn_momo" | null
+  >("orange_money");
+  const [copiedMsg, setCopiedMsg] = useState<string | null>(null);
+  const [payerPhone, setPayerPhone] = useState("");
+  const [transactionCode, setTransactionCode] = useState("");
+  const [submittingPayment, setSubmittingPayment] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isPaymentSuccess = searchParams?.get("payment") === "success";
@@ -195,6 +215,22 @@ function ProfessionalInvoiceViewInner({
                 })
               )
               : [],
+            pendingSubmission: data.pending_submission
+              ? {
+                  id: String(data.pending_submission.id ?? ""),
+                  operator:
+                    data.pending_submission.operator === "mtn_momo"
+                      ? "mtn_momo"
+                      : "orange_money",
+                  payerPhone: String(data.pending_submission.payer_phone ?? ""),
+                  transactionCode: String(
+                    data.pending_submission.transaction_code ?? ""
+                  ),
+                  amount: Number(data.pending_submission.amount ?? balance),
+                  status: String(data.pending_submission.status ?? "pending"),
+                  createdAt: String(data.pending_submission.created_at ?? ""),
+                }
+              : null,
           });
         }
       } finally {
@@ -215,64 +251,94 @@ function ProfessionalInvoiceViewInner({
     }, 500);
   }
 
-  async function handlePayWithFapshi() {
+  async function handleSelectOperator(op: "orange_money" | "mtn_momo") {
+    setSelectedOperator(op);
+    setErrorMsg(null);
+    const digits =
+      op === "orange_money" ? ORANGE_MONEY_PAY_DIGITS : MTN_MOMO_PAY_DIGITS;
+    const display =
+      op === "orange_money" ? ORANGE_MONEY_PAY_NUMBER : MTN_MOMO_PAY_NUMBER;
+    const label = op === "orange_money" ? "Orange Money" : "MTN MoMo";
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(digits);
+      }
+      setCopiedMsg(`Numéro ${label} copié : ${display}`);
+    } catch {
+      setCopiedMsg(`Numéro ${label} sélectionné : ${display}`);
+    }
+  }
+
+  async function handleSubmitMobileMoney(e: React.FormEvent) {
+    e.preventDefault();
     if (!invoice) return;
     setErrorMsg(null);
-    setPayingFapshi(true);
+
+    const operator = selectedOperator || "orange_money";
+    const phone = payerPhone.trim();
+    const code = transactionCode.trim();
+
+    if (phone.length < 6) {
+      setErrorMsg("Veuillez saisir le numéro de téléphone qui a payé.");
+      return;
+    }
+    if (code.length < 3) {
+      setErrorMsg("Veuillez saisir le code de transaction / ID du SMS.");
+      return;
+    }
+
+    setSubmittingPayment(true);
     try {
-      let apiUser = activeOrg.fapshi.apiUser;
-      let apiKey = activeOrg.fapshi.apiKey;
-      let environment = activeOrg.fapshi.environment;
-
-      if (
-        (!apiUser || !apiKey) &&
-        invoice.merchant.footerNote.startsWith("{")
-      ) {
-        try {
-          const parsed = JSON.parse(invoice.merchant.footerNote);
-          apiUser = parsed.fapshiApiUser || "";
-          apiKey = parsed.fapshiApiKey || "";
-          environment = parsed.fapshiEnv === "sandbox" ? "sandbox" : "live";
-        } catch {
-          // ignore
-        }
-      }
-
-      const origin =
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://encaisse.vercel.app";
-
-      const res = await fetch("/api/fapshi/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: invoice.balance > 0 ? invoice.balance : invoice.total,
-          apiUser,
-          apiKey,
-          environment,
-          externalId: invoice.number,
-          message: `Facture ${invoice.number} - ${invoice.merchant.name}`,
-          redirectUrl: `${origin}/pay/${invoice.publicToken}?payment=success`,
-        }),
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("submit_mobile_money_payment", {
+        p_token: invoice.publicToken || invoiceIdOrToken,
+        p_payer_phone: phone,
+        p_transaction_code: code,
+        p_operator: operator,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data?.link) {
-        setErrorMsg(
-          data?.error ||
-          "Impossible d'ouvrir le paiement Fapshi. Vérifiez les clés API Fapshi de l'entreprise."
-        );
+      if (error) {
+        if (error.message.includes("ALREADY_PENDING")) {
+          setErrorMsg(
+            "Un paiement est déjà en attente de validation pour cette facture."
+          );
+        } else if (error.message.includes("INVOICE_ALREADY_PAID")) {
+          setErrorMsg("Cette facture est déjà réglée.");
+        } else {
+          setErrorMsg(error.message || "Erreur lors de l'envoi du paiement.");
+        }
         return;
       }
 
-      window.location.href = data.link;
+      setInvoice((prev) =>
+        prev
+          ? {
+              ...prev,
+              pendingSubmission: {
+                id: String(data?.id ?? ""),
+                operator,
+                payerPhone: phone,
+                transactionCode: code,
+                amount: Number(data?.amount ?? prev.balance ?? prev.total),
+                status: "pending",
+                createdAt: String(
+                  data?.created_at ?? new Date().toISOString()
+                ),
+              },
+            }
+          : prev
+      );
+      setPayerPhone("");
+      setTransactionCode("");
     } catch (err) {
       setErrorMsg(
-        err instanceof Error ? err.message : "Erreur de connexion Fapshi"
+        err instanceof Error
+          ? err.message
+          : "Impossible d'enregistrer votre confirmation."
       );
     } finally {
-      setPayingFapshi(false);
+      setSubmittingPayment(false);
     }
   }
 
@@ -310,6 +376,8 @@ function ProfessionalInvoiceViewInner({
 
   const palette = BRAND_COLOR_PALETTE[invoice.merchant.primaryColor || "green"];
   const isPaid = invoice.balance <= 0 || isPaymentSuccess;
+  const isPendingValidation = !isPaid && Boolean(invoice.pendingSubmission);
+  const amountDue = invoice.balance > 0 ? invoice.balance : invoice.total;
 
   const origin =
     typeof window !== "undefined"
@@ -434,22 +502,32 @@ function ProfessionalInvoiceViewInner({
                 <div className="text-xs text-slate-500">
                   Date : {formatDate(invoice.issueDate)}
                 </div>
+                <div className="text-xs font-bold text-slate-700">
+                  Date limite : {formatDate(invoice.dueDate)}
+                </div>
                 <div className="pt-1">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${isPaid
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold ${
+                      isPaid
                         ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-800"
-                      }`}
+                        : isPendingValidation
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-amber-100 text-amber-800"
+                    }`}
                   >
-                    {isPaid ? "✅ PAYÉE" : "⏳ EN ATTENTE DE PAIEMENT"}
+                    {isPaid
+                      ? "✅ PAYÉE"
+                      : isPendingValidation
+                        ? "⏳ En attente de validation"
+                        : "⏳ EN ATTENTE DE PAIEMENT"}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* ENCADRÉ CLIENT : "Facturé à: Nom client, Téléphone" */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="space-y-0.5">
+            {/* RÉSUMÉ EN HAUT : Client, Facture, Montant à payer en XAF en GROS, Date limite */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
                 <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                   Facturé à :
                 </div>
@@ -462,9 +540,21 @@ function ProfessionalInvoiceViewInner({
                     </span>
                   ) : null}
                 </div>
+                <div className="text-xs text-slate-600">
+                  Facture <strong>{invoice.number}</strong> · Date limite :{" "}
+                  <strong>{formatDate(invoice.dueDate)}</strong>
+                </div>
               </div>
-              <div className="text-xs text-slate-500">
-                Échéance : <strong>{formatDate(invoice.dueDate)}</strong>
+              <div className="sm:text-right">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  Montant à payer
+                </div>
+                <div
+                  className="text-3xl sm:text-4xl font-black tracking-tight"
+                  style={{ color: palette.hex }}
+                >
+                  {formatCFA(amountDue)}
+                </div>
               </div>
             </div>
 
@@ -508,18 +598,18 @@ function ProfessionalInvoiceViewInner({
             {/* MONTANT TOTAL EN GRAND ET GRAS */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t-2 border-slate-200">
               <div className="text-xs text-slate-600 space-y-1">
-                {invoice.merchant.mtnMomoNumber ? (
-                  <div>
-                    💛 <strong>MTN MoMo :</strong>{" "}
-                    {invoice.merchant.mtnMomoNumber}
-                  </div>
-                ) : null}
-                {invoice.merchant.orangeMoneyNumber ? (
-                  <div>
-                    🧡 <strong>Orange Money :</strong>{" "}
-                    {invoice.merchant.orangeMoneyNumber}
-                  </div>
-                ) : null}
+                <div>
+                  👤 Bénéficiaire :{" "}
+                  <strong className="text-slate-900">
+                    {PAYMENT_BENEFICIARY_NAME}
+                  </strong>
+                </div>
+                <div>
+                  🧡 <strong>Orange Money :</strong> {ORANGE_MONEY_PAY_NUMBER}
+                </div>
+                <div>
+                  💛 <strong>MTN MoMo :</strong> {MTN_MOMO_PAY_NUMBER}
+                </div>
               </div>
 
               <div
@@ -535,7 +625,221 @@ function ProfessionalInvoiceViewInner({
               </div>
             </div>
 
-            {/* FOOTER : "Merci pour votre confiance - [Nom entreprise]" + 3 boutons d'action */}
+            {/* PAIEMENT MOBILE MONEY CAMEROUN (Masqué si déjà payée ou à l'impression) */}
+            {!isPaid ? (
+              <div className="pt-6 border-t border-slate-200 space-y-5 no-print">
+                {isPendingValidation && invoice.pendingSubmission ? (
+                  <div className="p-5 sm:p-6 rounded-2xl bg-blue-50 border-2 border-blue-200 space-y-2 text-center">
+                    <div className="text-2xl">⏳</div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A]">
+                      En attente de validation
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed max-w-xl mx-auto">
+                      Votre paiement de{" "}
+                      <strong>
+                        {formatCFA(invoice.pendingSubmission.amount)}
+                      </strong>{" "}
+                      via{" "}
+                      <strong>
+                        {invoice.pendingSubmission.operator === "orange_money"
+                          ? "Orange Money"
+                          : "MTN MoMo"}
+                      </strong>{" "}
+                      (Numéro :{" "}
+                      <strong>{invoice.pendingSubmission.payerPhone}</strong>,
+                      Code :{" "}
+                      <strong>
+                        {invoice.pendingSubmission.transactionCode}
+                      </strong>
+                      ) a bien été envoyé. Notre équipe vérifie le SMS et
+                      valide votre facture sous peu.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5 shadow-sm">
+                    <div className="space-y-1 text-center sm:text-left">
+                      <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A]">
+                        💳 Payer par Mobile Money Cameroun
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        Cliquez sur un opérateur pour copier automatiquement le
+                        numéro de paiement au nom de{" "}
+                        <strong>{PAYMENT_BENEFICIARY_NAME}</strong>.
+                      </p>
+                    </div>
+
+                    {/* 2 GROS BOUTONS CLIQUABLES : Orange Money & MTN MoMo */}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectOperator("orange_money")}
+                        className={`w-full px-5 py-4 rounded-2xl font-extrabold text-sm sm:text-base transition-all shadow-sm flex items-center justify-between gap-3 border-2 ${
+                          selectedOperator === "orange_money"
+                            ? "bg-[#FF7900] text-white border-[#cc6100] ring-4 ring-orange-200"
+                            : "bg-[#FF7900] hover:bg-[#e56d00] text-white border-transparent"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🟠</span>
+                          <span>Orange Money</span>
+                        </span>
+                        <span className="font-black tracking-wide">
+                          {ORANGE_MONEY_PAY_NUMBER}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectOperator("mtn_momo")}
+                        className={`w-full px-5 py-4 rounded-2xl font-extrabold text-sm sm:text-base transition-all shadow-sm flex items-center justify-between gap-3 border-2 ${
+                          selectedOperator === "mtn_momo"
+                            ? "bg-[#FFCC00] text-[#0B1F3A] border-[#d4a900] ring-4 ring-yellow-200"
+                            : "bg-[#FFCC00] hover:bg-[#eab800] text-[#0B1F3A] border-transparent"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🟡</span>
+                          <span>MTN MoMo</span>
+                        </span>
+                        <span className="font-black tracking-wide">
+                          {MTN_MOMO_PAY_NUMBER}
+                        </span>
+                      </button>
+                    </div>
+
+                    {copiedMsg ? (
+                      <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold text-center">
+                        ✅ {copiedMsg}
+                      </div>
+                    ) : null}
+
+                    {/* ÉTAPES AFFICHÉES AU CLIENT */}
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm text-slate-700">
+                      <div className="font-extrabold text-[#0B1F3A]">
+                        Comment payer votre facture :
+                      </div>
+                      <div>
+                        <strong>Étape 1 :</strong> Ouvrez Orange Money ou MTN
+                        MoMo sur votre téléphone.
+                      </div>
+                      <div>
+                        <strong>Étape 2 :</strong> Envoyez le montant exact (
+                        <strong className="text-[#0B1F3A]">
+                          {formatCFA(amountDue)}
+                        </strong>
+                        ) au numéro :{" "}
+                        <strong className="text-[#FF7900]">
+                          {ORANGE_MONEY_PAY_NUMBER}
+                        </strong>{" "}
+                        (Orange) ou{" "}
+                        <strong className="text-[#b58900]">
+                          {MTN_MOMO_PAY_NUMBER}
+                        </strong>{" "}
+                        (MTN) au nom de{" "}
+                        <strong className="text-[#0B1F3A]">
+                          {PAYMENT_BENEFICIARY_NAME}
+                        </strong>
+                        .
+                      </div>
+                      <div>
+                        <strong>Étape 3 :</strong> Gardez le SMS de
+                        confirmation.
+                      </div>
+                    </div>
+
+                    {/* FORMULAIRE DE CONFIRMATION */}
+                    <form
+                      onSubmit={handleSubmitMobileMoney}
+                      className="space-y-4 pt-2"
+                    >
+                      <div className="text-xs sm:text-sm font-extrabold text-[#0B1F3A]">
+                        Confirmer mon paiement :
+                      </div>
+
+                      <div className="grid sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Opérateur utilisé *
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedOperator("orange_money")
+                              }
+                              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all ${
+                                selectedOperator === "orange_money"
+                                  ? "bg-[#FF7900] text-white border-[#FF7900]"
+                                  : "bg-white text-slate-700 border-slate-300"
+                              }`}
+                            >
+                              Orange Money
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOperator("mtn_momo")}
+                              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all ${
+                                selectedOperator === "mtn_momo"
+                                  ? "bg-[#FFCC00] text-[#0B1F3A] border-[#eab800]"
+                                  : "bg-white text-slate-700 border-slate-300"
+                              }`}
+                            >
+                              MTN MoMo
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Votre numéro qui a payé *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={payerPhone}
+                            onChange={(e) => setPayerPhone(e.target.value)}
+                            placeholder="ex: 6XX XX XX XX"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Code de transaction / ID du SMS *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={transactionCode}
+                            onChange={(e) => setTransactionCode(e.target.value)}
+                            placeholder="ex: MP261113.1234.A123"
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      {errorMsg ? (
+                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-bold text-center">
+                          ⚠️ {errorMsg}
+                        </div>
+                      ) : null}
+
+                      <button
+                        type="submit"
+                        disabled={submittingPayment}
+                        className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base font-extrabold shadow-sm transition-colors disabled:opacity-50"
+                      >
+                        {submittingPayment
+                          ? "Envoi de la confirmation..."
+                          : "✅ J'ai payé, valider ma facture"}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* FOOTER : "Merci pour votre confiance - [Nom entreprise]" + PDF / WhatsApp */}
             <div className="pt-6 border-t border-slate-200 space-y-5">
               <div className="text-center text-xs sm:text-sm font-bold text-slate-700">
                 Merci pour votre confiance —{" "}
@@ -544,33 +848,15 @@ function ProfessionalInvoiceViewInner({
                 </span>
               </div>
 
-              {errorMsg ? (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-bold text-center no-print">
-                  ⚠️ {errorMsg}
-                </div>
-              ) : null}
-
               {/* Boutons d'action (masqués à l'impression PDF) */}
               <div className="flex flex-wrap items-center justify-center gap-3 no-print">
-                {!isPaid ? (
-                  <button
-                    type="button"
-                    onClick={handlePayWithFapshi}
-                    disabled={payingFapshi}
-                    className="px-5 py-3 rounded-xl text-white text-xs sm:text-sm font-extrabold shadow-sm transition-opacity hover:opacity-95 disabled:opacity-50"
-                    style={{ backgroundColor: palette.hex }}
-                  >
-                    {payingFapshi
-                      ? "Ouverture Fapshi..."
-                      : "💳 Payer avec Fapshi"}
-                  </button>
-                ) : (
+                {isPaid ? (
                   <WhatsAppShareButton
                     phone={invoice.clientPhone}
                     message={waReceiptMessage}
                     label="Envoyer le reçu sur WhatsApp"
                   />
-                )}
+                ) : null}
 
                 <button
                   type="button"
@@ -580,55 +866,58 @@ function ProfessionalInvoiceViewInner({
                   📥 Télécharger PDF avec logo
                 </button>
 
-                <WhatsAppShareButton
-                  phone={invoice.clientPhone}
-                  message={waShareMessage}
-                  label="Envoyer sur WhatsApp"
-                  onDownloadPdf={handleDownloadPdf}
-                  invoiceShare={{
-                    invoiceNumber: invoice.number,
-                    issueDate: invoice.issueDate,
-                    clientName: invoice.clientName,
-                    clientPhone: invoice.clientPhone,
-                    productName:
-                      invoice.lines.map((l) => l.label).join(", ") || "Produit",
-                    quantity: invoice.lines[0]?.quantity || 1,
-                    unitPrice: invoice.lines[0]?.unitPrice || invoice.total,
-                    amount: invoice.total,
-                    paymentUrl,
-                    merchantName: invoice.merchant.name,
-                    merchantCity: invoice.merchant.addressCity,
-                    merchantPhone: invoice.merchant.phone,
-                    merchantEmail: invoice.merchant.email,
-                    merchantRccmNiu: invoice.merchant.rccmNiu,
-                    merchantLogoUrl: invoice.merchant.logoUrl,
-                    primaryColor: invoice.merchant.primaryColor,
-                  }}
-                />
+                {viewerMode === "admin" ? (
+                  <WhatsAppShareButton
+                    phone={invoice.clientPhone}
+                    message={waShareMessage}
+                    label="Envoyer sur WhatsApp"
+                    onDownloadPdf={handleDownloadPdf}
+                    invoiceShare={{
+                      invoiceNumber: invoice.number,
+                      issueDate: invoice.issueDate,
+                      clientName: invoice.clientName,
+                      clientPhone: invoice.clientPhone,
+                      productName:
+                        invoice.lines.map((l) => l.label).join(", ") ||
+                        "Produit",
+                      quantity: invoice.lines[0]?.quantity || 1,
+                      unitPrice: invoice.lines[0]?.unitPrice || invoice.total,
+                      amount: invoice.total,
+                      paymentUrl,
+                      merchantName: invoice.merchant.name,
+                      merchantCity: invoice.merchant.addressCity,
+                      merchantPhone: invoice.merchant.phone,
+                      merchantEmail: invoice.merchant.email,
+                      merchantRccmNiu: invoice.merchant.rccmNiu,
+                      merchantLogoUrl: invoice.merchant.logoUrl,
+                      primaryColor: invoice.merchant.primaryColor,
+                    }}
+                  />
+                ) : null}
               </div>
 
-              {/* Bas de page /pay/[invoice_id] : Questions ? innovtechmhainfinity92@mail.com - WhatsApp: +235 66 26 85 03 */}
-              <div className="pt-4 border-t border-slate-100 text-center space-y-1.5">
-                <div className="text-xs sm:text-sm font-extrabold text-slate-700">
+              {/* Bas de page /pay/[invoice_id] */}
+              <div className="pt-4 border-t border-slate-100 text-center space-y-1">
+                <div className="text-xs font-bold text-slate-600">
                   Questions ?{" "}
-                  <a
-                    href={`mailto:${OFFICIAL_EMAIL}`}
-                    className="text-[#0B1F3A] underline"
-                  >
-                    {OFFICIAL_EMAIL}
-                  </a>{" "}
-                  -{" "}
                   <a
                     href={OFFICIAL_WHATSAPP_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#128C7E] underline"
                   >
-                    WhatsApp: {OFFICIAL_WHATSAPP_DISPLAY}
-                  </a>
+                    WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+                  </a>{" "}
+                  - Ngaoundéré, Cameroun
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  📍 {invoice.merchant.addressCity || DEFAULT_MERCHANT_LOCATION_LABEL}
+                  Email :{" "}
+                  <a
+                    href={`mailto:${OFFICIAL_EMAIL}`}
+                    className="text-[#0B1F3A] underline"
+                  >
+                    {OFFICIAL_EMAIL}
+                  </a>
                 </div>
               </div>
             </div>

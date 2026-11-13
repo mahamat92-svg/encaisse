@@ -35,6 +35,14 @@ export const OFFICIAL_WHATSAPP_ACCOUNT_URL =
   "https://wa.me/23566268503?text=Bonjour%20InnovTech%20MHA%20Infinity%2C%20je%20veux%20un%20compte";
 
 export const OFFICIAL_EMAIL = "innovtechmhainfinity92@mail.com";
+export const OFFICIAL_SITE_URL = "https://encaisse-git-main-bouba7.vercel.app";
+
+// Informations officielles de paiement Mobile Money Cameroun (NE PAS CONFONDRE avec WhatsApp)
+export const PAYMENT_BENEFICIARY_NAME = "MAHAMAT BOUBA";
+export const ORANGE_MONEY_PAY_NUMBER = "640 633 034";
+export const ORANGE_MONEY_PAY_DIGITS = "640633034";
+export const MTN_MOMO_PAY_NUMBER = "651 465 708";
+export const MTN_MOMO_PAY_DIGITS = "651465708";
 export const DEFAULT_MERCHANT_CITY = "Ngaoundéré";
 export const DEFAULT_MERCHANT_REGION = "Adamawa";
 export const DEFAULT_MERCHANT_COUNTRY = "Cameroun";
