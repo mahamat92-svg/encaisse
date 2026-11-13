@@ -20,7 +20,10 @@ export async function createServerSupabase() {
       ) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, {
+              ...options,
+              maxAge: options?.maxAge ?? 60 * 60 * 24 * 30,
+            })
           );
         } catch {
           // Ignoré si appelé depuis un Server Component pur

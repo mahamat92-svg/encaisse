@@ -63,7 +63,7 @@ export function PublicNavbar() {
     { href: "/decouvrir", label: "Découvrir" },
     { href: "/services", label: "Services" },
     { href: "/tarifs", label: t.nav.pricing },
-    { href: "/assistance", label: t.nav.help },
+    { href: "/aide", label: "Aide" },
   ];
 
   return (

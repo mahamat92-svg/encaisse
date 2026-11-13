@@ -14,28 +14,12 @@ import {
   DEFAULT_MERCHANT_REGION,
   OFFICIAL_EMAIL,
   OFFICIAL_WHATSAPP_DIGITS,
+  OFFICIAL_WHATSAPP_DISPLAY,
+  translateAuthOrNetworkError,
   type BusinessType,
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAppState } from "@/components/AppContext";
-
-function translateSignupError(msg: string): string {
-  const lower = msg.toLowerCase();
-  if (
-    lower.includes("already registered") ||
-    lower.includes("already exists") ||
-    lower.includes("user already")
-  ) {
-    return "Cette adresse email est déjà utilisée par un compte existant. Veuillez vous connecter ou utiliser un autre email.";
-  }
-  if (lower.includes("password should be at least")) {
-    return "Le mot de passe doit contenir au moins 6 caractères.";
-  }
-  if (lower.includes("invalid email")) {
-    return "Veuillez saisir une adresse email valide.";
-  }
-  return msg;
-}
 
 function SignupCardContent() {
   const router = useRouter();
@@ -139,7 +123,7 @@ function SignupCardContent() {
       });
 
       if (signUpErr) {
-        setErrorMsg(translateSignupError(signUpErr.message));
+        setErrorMsg(translateAuthOrNetworkError(signUpErr.message));
         setLoading(false);
         return;
       }
@@ -253,12 +237,14 @@ function SignupCardContent() {
       }
 
       await refreshOrgData();
-      router.replace("/admin/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       setErrorMsg(
-        err instanceof Error
-          ? translateSignupError(err.message)
-          : "Erreur lors de la création du compte."
+        translateAuthOrNetworkError(
+          err instanceof Error
+            ? err.message
+            : "Problème de connexion, vérifie ton internet et réessaie"
+        )
       );
     } finally {
       setLoading(false);
@@ -474,8 +460,18 @@ function SignupCardContent() {
           </div>
 
           {errorMsg ? (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700">
-              ⚠️ {errorMsg}
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 space-y-2">
+              <div>⚠️ {errorMsg}</div>
+              <a
+                href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
+                  `Bonjour InnovTech MHA Infinity, j'ai besoin d'aide pour créer mon compte (${email || "mon email"}).`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-extrabold"
+              >
+                💬 Contacter l&apos;aide WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
             </div>
           ) : null}
 

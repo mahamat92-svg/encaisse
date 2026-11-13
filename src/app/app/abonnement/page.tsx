@@ -3,7 +3,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAppState } from "@/components/AppContext";
 import { PLANS } from "@/lib/demo-data";
-import { formatCFA, type PaymentMethod } from "@/lib/format";
+import {
+  formatCFA,
+  MTN_MOMO_PAY_NUMBER,
+  OFFICIAL_WHATSAPP_DISPLAY,
+  ORANGE_MONEY_PAY_NUMBER,
+  PAYMENT_BENEFICIARY_NAME,
+  translateAuthOrNetworkError,
+  type PaymentMethod,
+} from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
 interface SubPaymentRow {
@@ -33,10 +41,9 @@ export default function SubscriptionPage() {
   const [aiUsed, setAiUsed] = useState<number>(0);
   const [history, setHistory] = useState<SubPaymentRow[]>([]);
 
-  const mtnAdmin =
-    process.env.NEXT_PUBLIC_ADMIN_MTN_MOMO || "670 00 00 00 (Nom : INNOVTECH)";
-  const omAdmin =
-    process.env.NEXT_PUBLIC_ADMIN_ORANGE_MONEY || "690 00 00 00 (Nom : INNOVTECH)";
+  const isPaidSub = org.subscriptionStatus === "active";
+  const mtnAdmin = `${MTN_MOMO_PAY_NUMBER} (Nom : ${PAYMENT_BENEFICIARY_NAME})`;
+  const omAdmin = `${ORANGE_MONEY_PAY_NUMBER} (Nom : ${PAYMENT_BENEFICIARY_NAME})`;
 
   const planObj = PLANS.find((p) => p.id === selectedPlan) ?? PLANS[2];
   const currentPlanObj =
@@ -104,13 +111,7 @@ export default function SubscriptionPage() {
           p_payer_phone: payerPhone.trim(),
         });
         if (error) {
-          if (error.message.includes("DUPLICATE_REFERENCE")) {
-            setErrorMsg(
-              "Cette référence de transaction Mobile Money a déjà été soumise (protection anti-doublon)."
-            );
-          } else {
-            setErrorMsg(error.message);
-          }
+          setErrorMsg(translateAuthOrNetworkError(error.message));
           return;
         }
         await loadSubscriptionState();
@@ -130,18 +131,32 @@ export default function SubscriptionPage() {
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-extrabold uppercase tracking-wider">
-              Formule effective : {currentPlanObj.name}
-              {org.trialDaysLeft > 0
-                ? ` · Essai Pro (${org.trialDaysLeft}j restants)`
-                : ""}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider ${
+                  isPaidSub
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {isPaidSub ? "✅ Payé" : "❌ Non Payé"}
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[#0B1F3A] text-xs font-extrabold uppercase tracking-wider">
+                Formule : {currentPlanObj.name}
+              </span>
+            </div>
             <h1 className="text-2xl font-extrabold text-[#0B1F3A] mt-2">
-              ⭐ Mon Abonnement, Quotas & Paiement Mobile Money
+              ⭐ Mon Abonnement &amp; Paiement Mobile Money
             </h1>
-            <p className="text-xs text-slate-500">
-              Aucune coupure brutale : vos données restent 100% accessibles même après expiration (Règle ABO-4).
-            </p>
+            {!isPaidSub ? (
+              <div className="mt-3 p-4 rounded-2xl bg-amber-50 border-2 border-amber-400 text-xs sm:text-sm font-extrabold text-[#0B1F3A]">
+                Payez votre abonnement Orange Money : {ORANGE_MONEY_PAY_NUMBER} / MTN MoMo : {MTN_MOMO_PAY_NUMBER} au nom de {PAYMENT_BENEFICIARY_NAME}. Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
+              </div>
+            ) : (
+              <p className="text-xs text-emerald-700 font-bold mt-1">
+                ✅ Ton abonnement est Payé. Tu peux publier tes produits et utiliser toutes les fonctionnalités sans limite.
+              </p>
+            )}
           </div>
         </div>
 
@@ -355,11 +370,11 @@ export default function SubscriptionPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-sm shadow-sm"
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-base shadow-md"
           >
             {submitting
-              ? "Transmission en cours..."
-              : `Envoyer ma référence pour activation (${formatCFA(amountDue)})`}
+              ? "Envoi de la preuve en cours..."
+              : `✅ J'ai payé (${formatCFA(amountDue)})`}
           </button>
         </form>
       </div>

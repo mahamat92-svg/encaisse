@@ -446,3 +446,80 @@ export function computeLineTotals(
   const vat = Math.round((subtotal * vatRateBp) / 10000);
   return { subtotal, vat, total: subtotal + vat };
 }
+
+/** Traduit toute erreur Supabase/Réseau/Anglaise en français simple pour le commerçant */
+export function translateAuthOrNetworkError(
+  rawMsg: string | null | undefined
+): string {
+  const msg = (rawMsg || "").trim();
+  const lower = msg.toLowerCase();
+
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("429") ||
+    lower.includes("over_email_send_rate_limit") ||
+    lower.includes("security purposes") ||
+    lower.includes("once every")
+  ) {
+    return "Trop d'essais, attends 2 minutes et réessaie";
+  }
+
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("network") ||
+    lower.includes("fetcherror") ||
+    lower.includes("load failed") ||
+    lower.includes("timeout") ||
+    lower.includes("err_internet") ||
+    lower.includes("connection")
+  ) {
+    return "Problème de connexion, vérifie ton internet et réessaie";
+  }
+
+  if (lower.includes("invalid login credentials")) {
+    return "Email ou mot de passe incorrect. Vérifie tes informations et réessaie.";
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return "Ton compte attend l'activation par email. Clique sur « Renvoyer le code » ou contacte l'aide WhatsApp +235 66 26 85 03.";
+  }
+
+  if (
+    lower.includes("already registered") ||
+    lower.includes("already exists") ||
+    lower.includes("user already")
+  ) {
+    return "Cette adresse email est déjà utilisée. Connecte-toi ou clique sur « Mot de passe oublié ? ».";
+  }
+
+  if (lower.includes("password should be at least")) {
+    return "Le mot de passe doit contenir au moins 6 caractères.";
+  }
+
+  if (lower.includes("invalid email") || lower.includes("unable to validate email")) {
+    return "Veuillez saisir une adresse email valide.";
+  }
+
+  if (lower.includes("duplicate_reference")) {
+    return "Cette référence de transaction a déjà été envoyée.";
+  }
+
+  // Éviter d'afficher des messages techniques anglais bruts
+  if (
+    /^[a-z0-9_:\s.,'-]+$/i.test(msg) &&
+    (lower.includes("error") ||
+      lower.includes("failed") ||
+      lower.includes("invalid") ||
+      lower.includes("token") ||
+      lower.includes("expired") ||
+      lower.includes("denied"))
+  ) {
+    return "Une erreur s'est produite. Réessaie dans quelques secondes ou contacte l'aide WhatsApp +235 66 26 85 03.";
+  }
+
+  return (
+    msg ||
+    "Une erreur s'est produite. Réessaie ou contacte l'aide WhatsApp +235 66 26 85 03."
+  );
+}
