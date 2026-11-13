@@ -49,6 +49,16 @@ function SignupCardContent() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -140,14 +150,16 @@ function SignupCardContent() {
 
       if (signUpErr) {
         const lower = signUpErr.message.toLowerCase();
+        setFailedAttempts((n) => n + 1);
         if (
           lower.includes("rate limit") ||
           lower.includes("too many requests") ||
           lower.includes("429") ||
           lower.includes("security purposes")
         ) {
+          setCooldownSeconds(60);
           setErrorMsg(
-            "Le serveur est très sollicité pour le moment. Clique sur « Contacter l'aide WhatsApp +235 66 26 85 03 » ou réessaie dans un instant."
+            "Tu as essayé trop de fois, attends 1 minute et réessaie."
           );
         } else {
           setErrorMsg(translateAuthOrNetworkError(signUpErr.message));
@@ -293,6 +305,7 @@ function SignupCardContent() {
       await refreshOrgData();
       router.replace("/dashboard");
     } catch (err) {
+      setFailedAttempts((n) => n + 1);
       setErrorMsg(
         translateAuthOrNetworkError(
           err instanceof Error
@@ -306,8 +319,8 @@ function SignupCardContent() {
   }
 
   return (
-    <main className="flex-1 overflow-x-hidden bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] flex items-center justify-center px-3 sm:px-4 py-8 sm:py-14">
-      <div className="w-full max-w-xl min-w-0 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-8 space-y-5">
+    <main className="flex-1 w-full overflow-x-hidden bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] flex items-center justify-center px-3 sm:px-6 py-8 sm:py-12">
+      <div className="w-full max-w-[700px] mx-auto min-w-0 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-8 space-y-5">
         <div className="space-y-2 text-center border-b border-slate-100 pb-5">
           <div className="flex justify-center">
             <div className="w-[80px] h-[80px] rounded-2xl bg-[#0B1F3A] border border-emerald-500/40 shadow-md overflow-hidden flex items-center justify-center">
@@ -335,17 +348,37 @@ function SignupCardContent() {
         <form onSubmit={handleSignup} className="space-y-4">
           {errorMsg ? (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs sm:text-sm font-bold text-amber-900 space-y-2">
-              <div>⚠️ {errorMsg}</div>
-              <a
-                href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
-                  `Bonjour InnovTech MHA Infinity, j'ai besoin d'aide pour créer mon compte (${email || "mon email"}).`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-extrabold text-center"
-              >
-                💬 Contacter l&apos;aide WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}
-              </a>
+              <div>
+                ⚠️ {errorMsg}
+                {cooldownSeconds > 0 ? (
+                  <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full bg-amber-200 text-amber-950 font-black">
+                    {cooldownSeconds}s
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || cooldownSeconds > 0}
+                  className="px-3.5 py-2 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold disabled:opacity-50"
+                >
+                  {cooldownSeconds > 0
+                    ? `Réessayer (${cooldownSeconds}s)`
+                    : "🔄 Réessayer"}
+                </button>
+                {failedAttempts >= 2 ? (
+                  <a
+                    href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
+                      `Bonjour InnovTech MHA Infinity, j'ai besoin d'aide pour créer mon compte (${email || "mon email"}).`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-extrabold text-[#128C7E] underline"
+                  >
+                    Contacter l&apos;aide WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY})
+                  </a>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

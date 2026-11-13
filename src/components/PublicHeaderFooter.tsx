@@ -21,7 +21,7 @@ export function BrandLogo({
   size?: number;
 }) {
   return (
-    <Link href="/" className="inline-flex items-center gap-2.5 group">
+    <Link href="/" className="inline-flex items-center gap-2.5 group shrink-0 whitespace-nowrap">
       <div
         className="rounded-xl bg-[#0B1F3A] border border-emerald-500/40 flex items-center justify-center shadow-sm overflow-hidden shrink-0"
         style={{ width: size, height: size }}
@@ -35,15 +35,15 @@ export function BrandLogo({
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="flex flex-col">
+      <div className="flex flex-col shrink-0">
         <span
-          className={`font-bold text-base leading-none tracking-tight ${light ? "text-white" : "text-[#0B1F3A]"
+          className={`font-bold text-sm sm:text-base leading-none tracking-tight whitespace-nowrap ${light ? "text-white" : "text-[#0B1F3A]"
             }`}
         >
           InnovTech <span className="text-emerald-500">MHA Infinity</span>
         </span>
         <span
-          className={`text-[10px] font-medium tracking-wider uppercase mt-0.5 ${light ? "text-slate-300" : "text-slate-500"
+          className={`text-[10px] font-medium tracking-wider uppercase mt-0.5 whitespace-nowrap ${light ? "text-slate-300" : "text-slate-500"
             }`}
         >
           SaaS Multi-Services · Afrique
@@ -68,19 +68,20 @@ export function PublicNavbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 no-print">
-      {/* Bandeau supérieur propre sur 2 lignes max sur mobile, jamais collé au logo */}
-      <div className="bg-[#0B1F3A] text-slate-200 text-[11px] py-1.5 px-3 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-          <div className="font-semibold truncate">
+      {/* Bandeau supérieur propre, jamais coupé */}
+      <div className="bg-[#0B1F3A] text-slate-200 text-[11px] py-1.5 px-4 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <div className="font-semibold">
             📍 {DEFAULT_MERCHANT_LOCATION_LABEL}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <a
               href={`mailto:${OFFICIAL_EMAIL}`}
-              className="font-bold text-emerald-300 hover:underline truncate"
+              className="font-bold text-emerald-300 hover:underline whitespace-nowrap"
             >
               📧 {OFFICIAL_EMAIL}
             </a>
+            <span className="hidden sm:inline text-slate-500">|</span>
             <a
               href={OFFICIAL_WHATSAPP_URL}
               target="_blank"
@@ -93,11 +94,29 @@ export function PublicNavbar() {
         </div>
       </div>
 
-      {/* Desktop Header (inchangé, une seule ligne propre) */}
-      <div className="hidden md:flex max-w-7xl mx-auto px-6 h-16 items-center justify-between gap-4">
-        <BrandLogo />
+      {/* Desktop Header : 2 lignes propres (Ligne 1: Logo + Boutons | Ligne 2: Menu centré) */}
+      <div className="hidden md:block">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <BrandLogo />
 
-        <nav className="flex items-center gap-6 text-sm font-medium text-slate-600">
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] transition-colors whitespace-nowrap"
+            >
+              Se connecter
+            </Link>
+
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors whitespace-nowrap"
+            >
+              S&apos;inscrire Gratuit
+            </Link>
+          </div>
+        </div>
+
+        <nav className="border-t border-slate-100 bg-slate-50/80 py-2.5 px-6 flex items-center justify-center gap-8 text-sm font-semibold text-slate-600">
           {links.map((item) => {
             const active = pathname === item.href;
             return (
@@ -106,8 +125,8 @@ export function PublicNavbar() {
                 href={item.href}
                 className={
                   active
-                    ? "text-[#0B1F3A] font-semibold border-b-2 border-emerald-500 py-1"
-                    : "hover:text-[#0B1F3A] transition-colors"
+                    ? "text-[#0B1F3A] font-extrabold border-b-2 border-emerald-500 pb-0.5 whitespace-nowrap"
+                    : "hover:text-[#0B1F3A] transition-colors whitespace-nowrap"
                 }
               >
                 {item.label}
@@ -115,22 +134,6 @@ export function PublicNavbar() {
             );
           })}
         </nav>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] transition-colors"
-          >
-            Se connecter
-          </Link>
-
-          <Link
-            href="/signup"
-            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
-          >
-            S&apos;inscrire Gratuit
-          </Link>
-        </div>
       </div>
 
       {/* Mobile Header (360px+ : 3 lignes propres sans aucun chevauchement) */}
