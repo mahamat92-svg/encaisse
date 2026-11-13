@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PublicFooter, PublicNavbar } from "@/components/PublicHeaderFooter";
 import {
+  AFRICA_CITIES,
+  AFRICA_SERVICE_CATEGORIES,
   BUSINESS_SERVICES,
   COUNTRY_OPTIONS,
   DEFAULT_MERCHANT_CITY,
@@ -16,19 +18,6 @@ import {
 } from "@/lib/format";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAppState } from "@/components/AppContext";
-
-const METIER_RADIO_OPTIONS: Array<{
-  id: BusinessType;
-  label: string;
-  emoji: string;
-}> = [
-    { id: "boutique", label: "Boutique", emoji: "🛒" },
-    { id: "ecole", label: "École", emoji: "🎓" },
-    { id: "clinique", label: "Clinique", emoji: "🏥" },
-    { id: "immobilier", label: "Immobilier", emoji: "🏠" },
-    { id: "artisan", label: "Artisan", emoji: "✂️" },
-    { id: "ong", label: "ONG", emoji: "🤝" },
-  ];
 
 function translateSignupError(msg: string): string {
   const lower = msg.toLowerCase();
@@ -62,8 +51,12 @@ function SignupCardContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [city, setCity] = useState(DEFAULT_MERCHANT_CITY);
+  const [city, setCity] = useState<string>(DEFAULT_MERCHANT_CITY);
+  const [customCity, setCustomCity] = useState("");
   const [country, setCountry] = useState<string>(DEFAULT_MERCHANT_COUNTRY);
+  const [serviceCategory, setServiceCategory] = useState<string>(
+    AFRICA_SERVICE_CATEGORIES[0].id
+  );
   const [businessType, setBusinessType] = useState<BusinessType>("boutique");
   const [selectedPlan, setSelectedPlan] = useState<string>(planParam);
 
@@ -90,7 +83,10 @@ function SignupCardContent() {
     const cleanCompany = companyName.trim();
     const cleanPhone = whatsappPhone.trim() || OFFICIAL_WHATSAPP_DIGITS;
     const cleanEmail = email.trim();
-    const cleanCity = city.trim() || DEFAULT_MERCHANT_CITY;
+    const cleanCity =
+      city === "Autre"
+        ? customCity.trim() || DEFAULT_MERCHANT_CITY
+        : city.trim() || DEFAULT_MERCHANT_CITY;
     const cleanCountry = country.trim() || DEFAULT_MERCHANT_COUNTRY;
 
     if (!cleanFullName || !cleanCompany || !cleanEmail || !password || !cleanCity) {
@@ -133,6 +129,7 @@ function SignupCardContent() {
             city: cleanCity,
             country: cleanCountry,
             business_type: businessType,
+            service_category: serviceCategory,
             org_mode: businessType === "ecole" ? "etablissement" : "commerce",
             role: "admin",
             plan: "trial",
@@ -192,6 +189,7 @@ function SignupCardContent() {
             .update({
               footer_note: JSON.stringify({
                 businessType,
+                serviceCategory,
                 email: cleanEmail,
                 city: cleanCity,
                 region: DEFAULT_MERCHANT_REGION,
@@ -355,20 +353,33 @@ function SignupCardContent() {
             </div>
           </div>
 
-          {/* Ville + Pays (saisie manuelle, aucune géolocalisation automatique) */}
+          {/* Ville + Pays */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ville (saisie manuelle) *
+                Ville *
               </label>
-              <input
-                type="text"
-                required
+              <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Ex: Ngaoundéré"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
-              />
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white font-semibold text-[#0B1F3A]"
+              >
+                {AFRICA_CITIES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+              {city === "Autre" ? (
+                <input
+                  type="text"
+                  required
+                  value={customCity}
+                  onChange={(e) => setCustomCity(e.target.value)}
+                  placeholder="Saisissez votre ville..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                />
+              ) : null}
             </div>
 
             <div>
@@ -421,33 +432,41 @@ function SignupCardContent() {
             </div>
           </div>
 
-          {/* Choisissez votre métier (6 boutons radio) */}
+          {/* Catégorie de Service (8 catégories Afrique) */}
           <div className="space-y-2 pt-1">
             <label className="block text-xs font-bold text-slate-700">
-              Choisissez votre métier *
+              Catégorie de Service *
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {METIER_RADIO_OPTIONS.map((opt) => {
-                const checked = businessType === opt.id;
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {AFRICA_SERVICE_CATEGORIES.map((cat) => {
+                const checked = serviceCategory === cat.id;
                 return (
                   <label
-                    key={opt.id}
-                    className={`cursor-pointer flex items-center gap-2.5 p-3 rounded-xl border-2 text-xs font-bold transition-all ${checked
+                    key={cat.id}
+                    className={`cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 text-xs transition-all ${checked
                         ? "border-emerald-600 bg-emerald-50 text-[#0B1F3A] shadow-xs"
                         : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
                       }`}
                   >
                     <input
                       type="radio"
-                      name="businessType"
-                      value={opt.id}
+                      name="serviceCategory"
+                      value={cat.id}
                       checked={checked}
-                      onChange={() => setBusinessType(opt.id)}
-                      className="accent-emerald-600 w-4 h-4 shrink-0"
+                      onChange={() => {
+                        setServiceCategory(cat.id);
+                        setBusinessType(cat.businessType);
+                      }}
+                      className="accent-emerald-600 w-4 h-4 mt-0.5 shrink-0"
                     />
-                    <span>
-                      {opt.emoji} {opt.label}
-                    </span>
+                    <div>
+                      <div className="font-extrabold">
+                        {cat.emoji} {cat.label}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        {cat.examples}
+                      </div>
+                    </div>
                   </label>
                 );
               })}

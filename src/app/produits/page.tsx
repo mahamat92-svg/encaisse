@@ -6,23 +6,17 @@ import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { useAppState } from "@/components/AppContext";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
+  AFRICA_CITIES,
+  AFRICA_SERVICE_CATEGORIES,
+  DEFAULT_MERCHANT_CITY,
   formatCFA,
   OFFICIAL_SITE_URL,
   OFFICIAL_WHATSAPP_DIGITS,
   OFFICIAL_WHATSAPP_DISPLAY,
 } from "@/lib/format";
 
-const CATEGORIES = [
-  "Boutique",
-  "École",
-  "Clinique",
-  "Immobilier",
-  "Artisan",
-  "ONG",
-] as const;
-
 const SUBSCRIPTION_BLOCK_MSG =
-  "Payez votre abonnement pour publier. Orange Money : 640 633 034 / MTN MoMo : 651 465 708 au nom de MAHAMAT BOUBA. WhatsApp aide : +235 66 26 85 03";
+  "Payez votre abonnement pour publier. Orange Money : 640 633 034 / MTN MoMo : 651 465 708 au nom de MAHAMAT BOUBA. Aide WhatsApp : +235 66 26 85 03";
 
 interface SocialProduct {
   id: string;
@@ -30,6 +24,9 @@ interface SocialProduct {
   price: number;
   description: string;
   category: string;
+  city: string;
+  shopName: string;
+  whatsappPhone: string;
   imageUrl: string;
   whatsappCount: number;
   tiktokCount: number;
@@ -59,6 +56,11 @@ function formatPublishDate(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatPhoneDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 8 ? digits : OFFICIAL_WHATSAPP_DIGITS;
 }
 
 async function downloadProductPhoto(imageUrl: string, productName: string) {
@@ -108,11 +110,15 @@ export default function PublishProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  // Formulaire Page 1 : Ajouter un produit
+  // Formulaire Page /produits : Ajouter un Service / Produit
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<string>("Boutique");
+  const [cityChoice, setCityChoice] = useState<string>(DEFAULT_MERCHANT_CITY);
+  const [customCity, setCustomCity] = useState("");
+  const [category, setCategory] = useState<string>(
+    AFRICA_SERVICE_CATEGORIES[0].id
+  );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -123,6 +129,39 @@ export default function PublishProductsPage() {
   const [blockedAlert, setBlockedAlert] = useState<string | null>(null);
   const [publishFeedback, setPublishFeedback] =
     useState<PublishFeedback | null>(null);
+
+  // Pré-remplir Ville et Catégorie depuis le profil du commerçant
+  useEffect(() => {
+    const orgCity = (org.city || "").split(",")[0].trim();
+    if (orgCity) {
+      if ((AFRICA_CITIES as readonly string[]).includes(orgCity)) {
+        setCityChoice(orgCity);
+      } else {
+        setCityChoice("Autre");
+        setCustomCity(orgCity);
+      }
+    }
+
+    const matchedCat = AFRICA_SERVICE_CATEGORIES.find(
+      (c) => c.businessType === org.businessType
+    );
+    if (matchedCat) {
+      setCategory(matchedCat.id);
+    }
+
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data }) => {
+        const metaCat = data.user?.user_metadata?.service_category;
+        if (
+          typeof metaCat === "string" &&
+          AFRICA_SERVICE_CATEGORIES.some((c) => c.id === metaCat)
+        ) {
+          setCategory(metaCat);
+        }
+      });
+    }
+  }, [org.city, org.businessType]);
 
   const loadProducts = useCallback(async () => {
     if (!isSupabaseConfigured() || !org.isLiveDb || !org.id) {
@@ -144,7 +183,12 @@ export default function PublishProductsPage() {
           name: String(row.name ?? ""),
           price: Number(row.price ?? 0),
           description: String(row.description ?? ""),
-          category: String(row.category ?? "Boutique"),
+          category: String(row.category ?? "Boutique & Commerce"),
+          city: String(row.city || org.city || DEFAULT_MERCHANT_CITY),
+          shopName: String(row.shop_name || org.name || "Ma Boutique"),
+          whatsappPhone: String(
+            row.whatsapp_phone || org.phone || OFFICIAL_WHATSAPP_DISPLAY
+          ),
           imageUrl: String(row.image_url ?? ""),
           whatsappCount: Number(row.whatsapp_count ?? 0),
           tiktokCount: Number(row.tiktok_count ?? 0),
@@ -162,7 +206,7 @@ export default function PublishProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [org.id, org.isLiveDb]);
+  }, [org.id, org.isLiveDb, org.city, org.name, org.phone]);
 
   useEffect(() => {
     loadProducts();
@@ -192,17 +236,22 @@ export default function PublishProductsPage() {
     setFormSuccess(null);
 
     if (!photoFile) {
-      setFormError("La photo du produit est obligatoire.");
+      setFormError("La photo du produit ou service est obligatoire.");
       return;
     }
     const cleanName = name.trim();
     const numericPrice = Number(price);
+    const resolvedCity =
+      cityChoice === "Autre"
+        ? customCity.trim() || DEFAULT_MERCHANT_CITY
+        : cityChoice;
+
     if (!cleanName) {
-      setFormError("Veuillez saisir le nom du produit.");
+      setFormError("Veuillez saisir le nom du produit ou service.");
       return;
     }
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-      setFormError("Veuillez saisir un prix valide en XAF.");
+      setFormError("Veuillez saisir un prix valide en XAF / FCFA.");
       return;
     }
     if (!isSupabaseConfigured() || !org.isLiveDb) {
@@ -237,14 +286,13 @@ export default function PublishProductsPage() {
           .getPublicUrl(filePath);
         publicImageUrl = pub.publicUrl;
       } else {
-        // Fallback vers le bucket 'logos' si 'products' n'est pas encore créé
         const fallbackPath = `products/${filePath}`;
         const { error: fbErr } = await supabase.storage
           .from("logos")
           .upload(fallbackPath, photoFile, { upsert: true });
         if (fbErr) {
           setFormError(
-            "Impossible d'envoyer la photo. Vérifiez la migration SQL Supabase (0006_publish_products_one_click.sql)."
+            "Impossible d'envoyer la photo. Vérifiez la migration SQL Supabase."
           );
           return;
         }
@@ -253,6 +301,9 @@ export default function PublishProductsPage() {
           .getPublicUrl(fallbackPath);
         publicImageUrl = pub.publicUrl;
       }
+
+      const shopName = org.name || "Ma Boutique";
+      const merchantWa = org.phone || OFFICIAL_WHATSAPP_DISPLAY;
 
       const { data: inserted, error: insErr } = await supabase
         .from("social_products")
@@ -263,6 +314,9 @@ export default function PublishProductsPage() {
           price: Math.round(numericPrice),
           description: description.trim(),
           category,
+          city: resolvedCity,
+          shop_name: shopName,
+          whatsapp_phone: merchantWa,
           image_url: publicImageUrl,
         })
         .select("*")
@@ -280,7 +334,10 @@ export default function PublishProductsPage() {
             name: String(inserted.name),
             price: Number(inserted.price),
             description: String(inserted.description ?? ""),
-            category: String(inserted.category ?? "Boutique"),
+            category: String(inserted.category ?? category),
+            city: String(inserted.city ?? resolvedCity),
+            shopName: String(inserted.shop_name ?? shopName),
+            whatsappPhone: String(inserted.whatsapp_phone ?? merchantWa),
             imageUrl: String(inserted.image_url),
             whatsappCount: 0,
             tiktokCount: 0,
@@ -295,37 +352,40 @@ export default function PublishProductsPage() {
       setName("");
       setPrice("");
       setDescription("");
-      setCategory("Boutique");
       setPhotoFile(null);
       setPhotoPreview("");
       setShowForm(false);
-      setFormSuccess("✅ Produit enregistré ! Vous pouvez le publier en 1 clic.");
+      setFormSuccess(
+        "✅ Produit / Service enregistré ! Il est maintenant visible sur /decouvrir et prêt à être publié en 1 clic."
+      );
     } finally {
       setSaving(false);
     }
   }
 
   function buildSalesText(product: SocialProduct): string {
-    const shopName = org.name || "Ma Boutique";
+    const city = product.city || org.city || DEFAULT_MERCHANT_CITY;
+    const shopName = product.shopName || org.name || "Ma Boutique";
     const formattedPrice = new Intl.NumberFormat("fr-FR").format(product.price);
     const desc = product.description?.trim()
       ? product.description.trim()
       : `${product.category} — Disponible dès maintenant !`;
+    const merchantPhone =
+      product.whatsappPhone || org.phone || OFFICIAL_WHATSAPP_DISPLAY;
 
-    return `🔥 NOUVEAU à ${shopName} à Ngaoundéré !
+    return `🔥 NOUVEAU à ${city} !
+${shopName} - ${product.category}
 ${product.name} - ${formattedPrice} XAF seulement !
 ${desc}
-Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
-#Ngaoundere #Cameroun #Boutique #InnovTech`;
+📍 ${city} - Commandez vite sur WhatsApp : ${merchantPhone}
+#Ndjamenan #Garoua #Douala #Ngaoundere #Cameroun #Tchad #Boutique`;
   }
 
   async function recordPublish(product: SocialProduct, channel: PublishChannel) {
     const nowIso = new Date().toISOString();
-    const nextWa =
-      product.whatsappCount + (channel === "whatsapp" ? 1 : 0);
+    const nextWa = product.whatsappCount + (channel === "whatsapp" ? 1 : 0);
     const nextTk = product.tiktokCount + (channel === "tiktok" ? 1 : 0);
-    const nextFb =
-      product.facebookCount + (channel === "facebook" ? 1 : 0);
+    const nextFb = product.facebookCount + (channel === "facebook" ? 1 : 0);
 
     setProducts((prev) =>
       prev.map((p) =>
@@ -372,11 +432,14 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
       typeof window !== "undefined"
         ? window.location.origin
         : OFFICIAL_SITE_URL;
-    const productLink = `${origin}/produits#produit-${product.id}`;
+    const productLink = `${origin}/decouvrir#produit-${product.id}`;
+    const targetWaDigits = formatPhoneDigits(
+      product.whatsappPhone || org.phone || OFFICIAL_WHATSAPP_DIGITS
+    );
 
     if (channel === "whatsapp") {
       await copyTextSafe(salesText);
-      const waUrl = `https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
+      const waUrl = `https://wa.me/${targetWaDigits}?text=${encodeURIComponent(
         salesText
       )}`;
       window.open(waUrl, "_blank", "noopener,noreferrer");
@@ -420,22 +483,30 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
   return (
     <WorkspaceShell>
       <div className="min-h-screen bg-white rounded-3xl border border-slate-200 p-4 sm:p-8 space-y-6 shadow-sm">
-        {/* EN-TÊTE MOBILE-FIRST SIMPLE */}
+        {/* EN-TÊTE MOBILE-FIRST */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 mb-2">
-              {isSubscriptionPaid
-                ? "✅ Abonnement : Payé (Publication activée)"
-                : org.subscriptionStatus === "expired"
-                  ? "🔒 Abonnement : Expiré"
-                  : "⏳ Abonnement : En attente"}
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">
+                {isSubscriptionPaid
+                  ? "✅ Abonnement : Payé (Publication activée)"
+                  : org.subscriptionStatus === "expired"
+                    ? "🔒 Abonnement : Expiré"
+                    : "⏳ Abonnement : En attente"}
+              </span>
+              <Link
+                href="/decouvrir"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-[#0B1F3A] border border-blue-200 hover:bg-blue-100"
+              >
+                🌍 Voir la page publique /decouvrir →
+              </Link>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-[#0B1F3A]">
-              📣 Publier mes Produits en 1 clic
+              📣 Publier mes Produits / Services en 1 clic
             </h1>
             <p className="text-sm text-slate-600 mt-1">
-              Ajoutez votre produit et publiez en 1 clic sur WhatsApp, TikTok et
-              Facebook.
+              Ajoutez votre produit ou service et publiez en 1 clic sur
+              WhatsApp, TikTok et Facebook.
             </p>
           </div>
 
@@ -447,15 +518,17 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
             }}
             className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-base font-black shadow-md transition-colors"
           >
-            {showForm ? "✖ Fermer le formulaire" : "➕ Ajouter un produit"}
+            {showForm
+              ? "✖ Fermer le formulaire"
+              : "➕ Ajouter un Service / Produit"}
           </button>
         </div>
 
-        {/* RÈGLE ABONNEMENT : BLOQUÉ SI EN ATTENTE OU EXPIRÉ */}
+        {/* RÈGLE ABONNEMENT : BLOQUÉ SI NON PAYÉ */}
         {!isSubscriptionPaid ? (
           <div className="p-5 sm:p-6 rounded-2xl bg-amber-50 border-2 border-amber-400 space-y-3">
             <div className="text-base sm:text-lg font-black text-[#0B1F3A]">
-              🔒 Publication bloquée — Abonnement non payé
+              🔒 Publication bloquée — Abonnement requis
             </div>
             <p className="text-sm sm:text-base font-bold text-amber-950 leading-relaxed">
               {SUBSCRIPTION_BLOCK_MSG}
@@ -470,7 +543,7 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                 href="/app/abonnement"
                 className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black shadow-sm"
               >
-                💳 Payer mon abonnement maintenant
+                💳 Payer mon abonnement
               </Link>
               <a
                 href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}`}
@@ -478,7 +551,7 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                 rel="noopener noreferrer"
                 className="px-5 py-3 rounded-xl bg-[#25D366] hover:bg-[#1fb857] text-white text-sm font-black shadow-sm"
               >
-                💬 WhatsApp aide : {OFFICIAL_WHATSAPP_DISPLAY}
+                💬 Aide WhatsApp : {OFFICIAL_WHATSAPP_DISPLAY}
               </a>
             </div>
           </div>
@@ -490,20 +563,20 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
           </div>
         ) : null}
 
-        {/* PAGE 1 : FORMULAIRE AJOUTER UN PRODUIT */}
+        {/* ÉTAPE 2 : FORMULAIRE AJOUTER UN SERVICE / PRODUIT */}
         {showForm ? (
           <form
             onSubmit={handleSaveProduct}
             className="p-5 sm:p-7 rounded-2xl bg-slate-50 border-2 border-slate-200 space-y-5"
           >
             <h2 className="text-lg sm:text-xl font-black text-[#0B1F3A]">
-              📸 Ajouter un nouveau produit
+              📸 Ajouter un Service / Produit
             </h2>
 
             {/* Photo obligatoire */}
             <div className="space-y-2">
               <label className="block text-sm font-extrabold text-slate-800">
-                1. Photo du produit (obligatoire) *
+                1. Photo (obligatoire) *
               </label>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <label className="cursor-pointer px-5 py-4 rounded-2xl bg-white border-2 border-dashed border-slate-400 hover:border-emerald-600 text-sm font-extrabold text-[#0B1F3A] text-center w-full sm:w-auto">
@@ -519,12 +592,12 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={photoPreview}
-                    alt="Aperçu produit"
+                    alt="Aperçu"
                     className="w-28 h-28 object-cover rounded-2xl border-2 border-emerald-500 shadow-sm"
                   />
                 ) : (
                   <span className="text-xs text-slate-500">
-                    Format JPG ou PNG depuis votre téléphone ou ordinateur
+                    Photo depuis votre téléphone ou ordinateur (JPG/PNG)
                   </span>
                 )}
               </div>
@@ -533,21 +606,21 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                  2. Nom du produit *
+                  2. Nom du produit / service *
                 </label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Sac à main cuir, Robe soirée..."
+                  placeholder="Ex: Poulet braisé, Moto-taxi, Robe soirée..."
                   className="w-full px-4 py-3.5 rounded-xl bg-white border border-slate-300 text-base font-medium"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                  3. Prix en XAF *
+                  3. Prix en XAF / FCFA *
                 </label>
                 <input
                   type="number"
@@ -555,46 +628,68 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="Ex: 15000"
+                  placeholder="Ex: 5000"
                   className="w-full px-4 py-3.5 rounded-xl bg-white border border-slate-300 text-base font-bold"
                 />
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
+                4. Description courte
+              </label>
+              <textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ex: Livraison rapide partout en ville, qualité garantie..."
+                className="w-full px-4 py-3 rounded-xl bg-white border border-slate-300 text-sm"
+              />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                  4. Description courte
+              <div className="space-y-2">
+                <label className="block text-sm font-extrabold text-slate-800">
+                  5. Ville (pré-remplie) *
                 </label>
-                <textarea
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ex: Très bonne qualité, livraison rapide à Ngaoundéré..."
-                  className="w-full px-4 py-3 rounded-xl bg-white border border-slate-300 text-sm"
-                />
+                <select
+                  value={cityChoice}
+                  onChange={(e) => setCityChoice(e.target.value)}
+                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-slate-300 text-sm font-bold text-[#0B1F3A]"
+                >
+                  {AFRICA_CITIES.map((v) => (
+                    <option key={v} value={v}>
+                      📍 {v}
+                    </option>
+                  ))}
+                </select>
+                {cityChoice === "Autre" ? (
+                  <input
+                    type="text"
+                    required
+                    value={customCity}
+                    onChange={(e) => setCustomCity(e.target.value)}
+                    placeholder="Saisissez la ville..."
+                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-300 text-sm"
+                  />
+                ) : null}
               </div>
 
               <div>
-                <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                  5. Catégorie *
+                <label className="block text-sm font-extrabold text-slate-800 mb-2">
+                  6. Catégorie (pré-remplie) *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategory(cat)}
-                      className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-extrabold border transition-all ${
-                        category === cat
-                          ? "bg-[#0B1F3A] text-white border-[#0B1F3A]"
-                          : "bg-white text-slate-700 border-slate-300"
-                      }`}
-                    >
-                      {cat}
-                    </button>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-3.5 rounded-xl bg-white border border-slate-300 text-sm font-bold text-[#0B1F3A]"
+                >
+                  {AFRICA_SERVICE_CATEGORIES.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.emoji} {cat.label}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             </div>
 
@@ -614,20 +709,20 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
           </form>
         ) : null}
 
-        {/* LISTE DES PRODUITS EN CARTES + BOUTON PUBLIER + HISTORIQUE */}
+        {/* LISTE EN CARTES + BOUTONS PUBLIER EN 1 CLIC + HISTORIQUE */}
         {loading ? (
           <div className="py-12 text-center text-sm text-slate-500">
-            Chargement de vos produits...
+            Chargement de vos produits et services...
           </div>
         ) : products.length === 0 ? (
           <div className="p-8 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3">
             <div className="text-3xl">📦</div>
             <div className="text-base font-extrabold text-[#0B1F3A]">
-              Aucun produit enregistré pour le moment
+              Aucun produit ou service enregistré
             </div>
             <p className="text-sm text-slate-600">
-              Cliquez sur &laquo; Ajouter un produit &raquo; ci-dessus pour
-              commencer à publier en 1 clic.
+              Ajoutez votre premier produit ou service ci-dessus pour le
+              publier en 1 clic.
             </p>
           </div>
         ) : (
@@ -649,7 +744,6 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                   className="bg-white rounded-3xl border-2 border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between"
                 >
                   <div>
-                    {/* Photo + Badge Catégorie */}
                     <div className="relative h-60 w-full bg-slate-100">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -660,9 +754,11 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                       <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/95 text-[#0B1F3A] text-xs font-black shadow-sm">
                         {product.category}
                       </span>
+                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full bg-[#0B1F3A]/90 text-white text-xs font-black shadow-sm">
+                        📍 {product.city}
+                      </span>
                     </div>
 
-                    {/* Infos produit */}
                     <div className="p-5 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-xl font-black text-[#0B1F3A] leading-snug">
@@ -672,6 +768,9 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                           {formatCFA(product.price)}
                         </div>
                       </div>
+                      <div className="text-xs font-bold text-slate-500">
+                        🏪 {product.shopName} · 📍 {product.city}
+                      </div>
                       {product.description ? (
                         <p className="text-sm text-slate-600 leading-relaxed">
                           {product.description}
@@ -680,7 +779,7 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                     </div>
                   </div>
 
-                  {/* PAGE 2 : GROS BOUTONS PUBLIER EN 1 CLIC */}
+                  {/* ÉTAPE 3 : 3 GROS BOUTONS PUBLIER EN 1 CLIC */}
                   <div className="p-5 pt-3 bg-slate-50 border-t border-slate-200 space-y-3">
                     <div className="text-xs font-black uppercase tracking-wider text-[#0B1F3A]">
                       🚀 PUBLIER EN 1 CLIC :
@@ -729,7 +828,6 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                       </div>
                     </div>
 
-                    {/* FEEDBACK IMMÉDIAT APRÈS CLIC */}
                     {activeFeedback ? (
                       <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-300 space-y-2">
                         <div className="text-xs sm:text-sm font-black text-emerald-900">
@@ -747,13 +845,13 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
                             }
                             className="w-full py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black"
                           >
-                            📥 Télécharger la photo pour mon Statut WhatsApp
+                            📥 Télécharger la photo pour Statut
                           </button>
                         ) : null}
                       </div>
                     ) : null}
 
-                    {/* PAGE 3 : HISTORIQUE SOUS CHAQUE PRODUIT */}
+                    {/* HISTORIQUE */}
                     <div className="pt-2 border-t border-slate-200 text-xs text-slate-600 space-y-1">
                       <div className="font-bold text-slate-800">
                         📊 Publié {totalPublishes} fois sur WhatsApp / TikTok /
@@ -776,4 +874,3 @@ Commandez vite sur WhatsApp : ${OFFICIAL_WHATSAPP_DISPLAY}
     </WorkspaceShell>
   );
 }
-

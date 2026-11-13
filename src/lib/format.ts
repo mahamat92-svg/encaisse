@@ -68,6 +68,90 @@ export const COUNTRY_OPTIONS = [
   "Autre",
 ] as const;
 
+export const AFRICA_CITIES = [
+  "N'Djamena",
+  "Ngaoundéré",
+  "Garoua",
+  "Douala",
+  "Yaoundé",
+  "Maroua",
+  "Bafoussam",
+  "Kousseri",
+  "Moundou",
+  "Sarh",
+  "Bertoua",
+  "Foumban",
+  "Autre",
+] as const;
+
+export interface AfricaServiceCategory {
+  id: string;
+  label: string;
+  emoji: string;
+  examples: string;
+  businessType: BusinessType;
+}
+
+export const AFRICA_SERVICE_CATEGORIES: AfricaServiceCategory[] = [
+  {
+    id: "Boutique & Commerce",
+    label: "Boutique & Commerce",
+    emoji: "🛒",
+    examples: "Vêtements, Chaussures, Cosmétiques, Téléphones, Marché",
+    businessType: "boutique",
+  },
+  {
+    id: "Nourriture",
+    label: "Nourriture",
+    emoji: "🍽️",
+    examples: "Restaurant, Grillade, Jus, Boulangerie, Traiteur, Fast-Food",
+    businessType: "boutique",
+  },
+  {
+    id: "Transport",
+    label: "Transport",
+    emoji: "🚕",
+    examples: "Moto-Taxi, Taxi, Location Voiture, Livraison, Déménagement",
+    businessType: "artisan",
+  },
+  {
+    id: "Beauté & Mode",
+    label: "Beauté & Mode",
+    emoji: "💇",
+    examples: "Coiffure, Salon de beauté, Couture / Tailleur, Photographe",
+    businessType: "artisan",
+  },
+  {
+    id: "Santé",
+    label: "Santé",
+    emoji: "🏥",
+    examples: "Clinique, Pharmacie, Cabinet Dentaire, Optique",
+    businessType: "clinique",
+  },
+  {
+    id: "Éducation",
+    label: "Éducation",
+    emoji: "🎓",
+    examples: "École, Centre de Formation, Cours de répétition, Garderie",
+    businessType: "ecole",
+  },
+  {
+    id: "Immobilier",
+    label: "Immobilier",
+    emoji: "🏠",
+    examples: "Location Maison/Chambre, Vente Terrain, Hôtel, Auberge",
+    businessType: "immobilier",
+  },
+  {
+    id: "Services Pro",
+    label: "Services Pro",
+    emoji: "🛠️",
+    examples:
+      "Plombier, Électricien, Mécanicien, Menuisier, Nettoyage, Agence de Voyage, Transfert d'argent, Cybercafé / Impression",
+    businessType: "artisan",
+  },
+];
+
 export interface BusinessServiceDefinition {
   id: BusinessType;
   icon: string;

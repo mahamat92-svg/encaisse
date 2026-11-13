@@ -37,16 +37,14 @@ export function BrandLogo({
       </div>
       <div className="flex flex-col">
         <span
-          className={`font-bold text-base leading-none tracking-tight ${
-            light ? "text-white" : "text-[#0B1F3A]"
-          }`}
+          className={`font-bold text-base leading-none tracking-tight ${light ? "text-white" : "text-[#0B1F3A]"
+            }`}
         >
           InnovTech <span className="text-emerald-500">MHA Infinity</span>
         </span>
         <span
-          className={`text-[10px] font-medium tracking-wider uppercase mt-0.5 ${
-            light ? "text-slate-300" : "text-slate-500"
-          }`}
+          className={`text-[10px] font-medium tracking-wider uppercase mt-0.5 ${light ? "text-slate-300" : "text-slate-500"
+            }`}
         >
           SaaS Multi-Services · Afrique
         </span>
@@ -62,6 +60,7 @@ export function PublicNavbar() {
 
   const links = [
     { href: "/", label: t.nav.home },
+    { href: "/decouvrir", label: "Découvrir" },
     { href: "/services", label: "Services" },
     { href: "/tarifs", label: t.nav.pricing },
     { href: "/assistance", label: t.nav.help },
