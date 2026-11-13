@@ -26,7 +26,8 @@ export type BusinessType =
   | "clinique"
   | "immobilier"
   | "artisan"
-  | "ong";
+  | "ong"
+  | "agriculture";
 
 export const OFFICIAL_WHATSAPP_DISPLAY = "+235 66 26 85 03";
 export const OFFICIAL_WHATSAPP_DIGITS = "23566268503";
@@ -150,7 +151,84 @@ export const AFRICA_SERVICE_CATEGORIES: AfricaServiceCategory[] = [
       "Plombier, Électricien, Mécanicien, Menuisier, Nettoyage, Agence de Voyage, Transfert d'argent, Cybercafé / Impression",
     businessType: "artisan",
   },
+  {
+    id: "Agriculture & Élevage",
+    label: "Agriculture & Élevage",
+    emoji: "🌾",
+    examples:
+      "Mil, Maïs, Riz, Oignon, Bœuf, Mouton, Poulet, Lait, Engrais, Tracteur",
+    businessType: "agriculture",
+  },
 ];
+
+export interface AgricultureSubCategory {
+  id: string;
+  label: string;
+  emoji: string;
+  types: string[];
+}
+
+export const AGRICULTURE_SUBCATEGORIES: AgricultureSubCategory[] = [
+  {
+    id: "Cultures",
+    label: "Cultures",
+    emoji: "🌾",
+    types: [
+      "Mil",
+      "Maïs",
+      "Riz",
+      "Oignon",
+      "Arachide",
+      "Coton",
+      "Tomate",
+      "Manioc",
+    ],
+  },
+  {
+    id: "Élevage",
+    label: "Élevage",
+    emoji: "🐄",
+    types: ["Bœuf", "Mouton", "Chèvre", "Poulet", "Œuf", "Lait"],
+  },
+  {
+    id: "Intrants",
+    label: "Intrants",
+    emoji: "🌱",
+    types: ["Engrais", "Semences", "Pesticides", "Matériel Agricole"],
+  },
+  {
+    id: "Services Agricoles",
+    label: "Services Agricoles",
+    emoji: "🚜",
+    types: [
+      "Location Tracteur",
+      "Labour",
+      "Transport Récolte",
+      "Stockage",
+    ],
+  },
+];
+
+export const AGRICULTURE_UNITS = [
+  "Sac 50kg",
+  "Sac 100kg",
+  "Tonne",
+  "Kg",
+  "Casier",
+  "Tête",
+  "Litre",
+] as const;
+
+export const AGRICULTURE_MARKETS = [
+  "Marché de Garoua",
+  "Marché de Maroua",
+  "Marché de Kousseri",
+  "Marché de Ngaoundéré",
+  "Marché de N'Djamena",
+  "Marché de Douala",
+  "Marché de Yaoundé",
+  "Autre",
+] as const;
 
 export interface BusinessServiceDefinition {
   id: BusinessType;
@@ -231,6 +309,17 @@ export const BUSINESS_SERVICES: BusinessServiceDefinition[] = [
     productsLabel: "Produits",
     clientsLabel: "Clients",
   },
+  {
+    id: "agriculture",
+    icon: "🌾",
+    emoji: "🌾",
+    title: "Agriculture & Élevage",
+    subtitle: "Récoltes, Stock, Bétail, Ventes en gros",
+    features: ["Cultures & Récoltes", "Élevage & Bétail", "Vente en gros"],
+    bullets: ["Cultures & Récoltes", "Élevage & Bétail", "Vente en gros"],
+    productsLabel: "Récoltes & Produits",
+    clientsLabel: "Acheteurs",
+  },
 ];
 
 export function getBusinessTypeLabels(businessType?: BusinessType | string): {
@@ -269,6 +358,16 @@ export function getBusinessTypeLabels(businessType?: BusinessType | string): {
       clients: "Locataires",
       clientsLabel: "Locataires",
       clientSingular: "Locataire",
+    };
+  }
+  if (businessType === "agriculture") {
+    return {
+      products: "Récoltes & Produits",
+      productsLabel: "Récoltes & Produits",
+      productSingular: "Récolte / Produit",
+      clients: "Acheteurs",
+      clientsLabel: "Acheteurs",
+      clientSingular: "Acheteur",
     };
   }
   return {
@@ -398,8 +497,11 @@ export function buildInvoiceWhatsAppMessage(params: {
   clientName: string;
   invoiceNumber: string;
   amount: number;
+  paidAmount?: number;
+  balanceAmount?: number;
   productName?: string;
-  paymentUrl: string;
+  linesSummary?: string;
+  paymentUrl?: string;
   merchantName?: string;
   merchantCity?: string;
   merchantPhone?: string;
@@ -408,24 +510,22 @@ export function buildInvoiceWhatsAppMessage(params: {
 }): string {
   const client = params.clientName.trim() || "Client";
   const num = params.invoiceNumber.trim();
-  const amt = formatAmountNumber(params.amount);
+  const totalAmt = formatAmountNumber(params.amount);
+  const paidNum = Math.max(0, Number(params.paidAmount ?? 0));
+  const balanceNum =
+    params.balanceAmount !== undefined
+      ? Math.max(0, Number(params.balanceAmount))
+      : Math.max(0, params.amount - paidNum);
+  const paidAmt = formatAmountNumber(paidNum);
+  const balanceAmt = formatAmountNumber(balanceNum);
   const merchant = params.merchantName?.trim() || "Ma Boutique";
   const city = (params.merchantCity || DEFAULT_MERCHANT_CITY).split(",")[0].trim();
-  const merchantWa = params.merchantPhone?.trim() || OFFICIAL_WHATSAPP_DISPLAY;
-  const thanks = params.footerMessage?.trim() || "Merci pour votre confiance !";
-  const productLine = params.productName?.trim()
-    ? `\nProduits : ${params.productName.trim()} - ${amt} XAF`
-    : "";
+  const details =
+    params.linesSummary?.trim() ||
+    params.productName?.trim() ||
+    "Votre commande";
 
-  return `*${merchant.toUpperCase()} - ${city}*
-📍 ${city} | WhatsApp: ${merchantWa}
-
-Bonjour ${client},
-Voici votre facture ${num} de ${amt} XAF de ${merchant} - ${city}.${productLine}
-Reste à payer : ${amt} XAF
-Pour payer : ${params.paymentUrl.trim()}
-Orange Money : ${ORANGE_MONEY_PAY_NUMBER} / MTN MoMo : ${MTN_MOMO_PAY_NUMBER} (${PAYMENT_BENEFICIARY_NAME})
-${thanks} - ${merchant}, WhatsApp : ${merchantWa}`;
+  return `Bonjour ${client}, voici votre facture ${num} de ${merchant} - ${city}. Total : ${totalAmt} XAF, Déjà payé : ${paidAmt} XAF, Reste à payer : ${balanceAmt} XAF. Détails : ${details}. Payez par Orange Money ${ORANGE_MONEY_PAY_NUMBER} / MTN MoMo ${MTN_MOMO_PAY_NUMBER}. Merci !`;
 }
 
 /**

@@ -24,6 +24,13 @@ interface PublicProductItem {
   shopLogoUrl: string;
   whatsappPhone: string;
   imageUrl: string;
+  subCategory: string;
+  agriType: string;
+  unit: string;
+  stockQty: number;
+  soldQty: number;
+  marketName: string;
+  harvestDate: string;
   createdAt: string;
 }
 
@@ -38,6 +45,8 @@ export default function DiscoverAfricaServicesPage() {
   const [selectedCity, setSelectedCity] = useState<string>("Toutes");
   const [selectedCategory, setSelectedCategory] = useState<string>("Toutes");
   const [searchQuery, setSearchQuery] = useState("");
+  const [bulkItemId, setBulkItemId] = useState<string | null>(null);
+  const [bulkQty, setBulkQty] = useState<number>(5);
 
   useEffect(() => {
     async function fetchPublicProducts() {
@@ -48,13 +57,25 @@ export default function DiscoverAfricaServicesPage() {
       setLoading(true);
       try {
         const supabase = createClient();
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("social_products")
           .select(
-            "id, name, price, description, category, city, shop_name, shop_logo_url, whatsapp_phone, image_url, created_at"
+            "id, name, price, description, category, city, shop_name, shop_logo_url, whatsapp_phone, image_url, sub_category, agri_type, unit, stock_qty, sold_qty, market_name, harvest_date, created_at"
           )
           .order("created_at", { ascending: false })
           .limit(120);
+
+        if (error) {
+          const fb = await supabase
+            .from("social_products")
+            .select(
+              "id, name, price, description, category, city, shop_name, shop_logo_url, whatsapp_phone, image_url, created_at"
+            )
+            .order("created_at", { ascending: false })
+            .limit(120);
+          data = fb.data as typeof data;
+          error = fb.error;
+        }
 
         if (!error && Array.isArray(data)) {
           setItems(
@@ -71,6 +92,13 @@ export default function DiscoverAfricaServicesPage() {
                 row.whatsapp_phone || OFFICIAL_WHATSAPP_DIGITS
               ),
               imageUrl: String(row.image_url ?? ""),
+              subCategory: String(row.sub_category ?? ""),
+              agriType: String(row.agri_type ?? ""),
+              unit: String(row.unit ?? ""),
+              stockQty: Number(row.stock_qty ?? 0),
+              soldQty: Number(row.sold_qty ?? 0),
+              marketName: String(row.market_name ?? ""),
+              harvestDate: String(row.harvest_date ?? ""),
               createdAt: String(row.created_at ?? ""),
             }))
           );
@@ -213,6 +241,44 @@ export default function DiscoverAfricaServicesPage() {
           </div>
         </div>
 
+        {/* CARTE VEDETTE AGRICULTURE & ÉLEVAGE */}
+        <button
+          type="button"
+          onClick={() =>
+            setSelectedCategory(
+              selectedCategory === "Agriculture & Élevage"
+                ? "Toutes"
+                : "Agriculture & Élevage"
+            )
+          }
+          className={`w-full text-left rounded-3xl border-2 overflow-hidden shadow-sm transition-all flex flex-col sm:flex-row items-stretch ${
+            selectedCategory === "Agriculture & Élevage"
+              ? "border-emerald-600 bg-emerald-50"
+              : "border-slate-200 bg-white hover:border-emerald-400"
+          }`}
+        >
+          <div className="sm:w-56 h-36 sm:h-auto shrink-0 bg-emerald-950 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/agriculture-hero.jpg"
+              alt="Agriculture et Élevage"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="p-5 flex-1 flex flex-col justify-center space-y-1.5">
+            <div className="text-xs font-black uppercase tracking-wider text-emerald-700">
+              🌾 Nouveau Service Spécial
+            </div>
+            <h2 className="text-lg sm:text-xl font-black text-[#0B1F3A]">
+              Agriculture &amp; Élevage — Récoltes &amp; Ventes en gros
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Mil, Maïs, Riz, Oignon, Bœuf, Mouton, Lait, Engrais, Tracteurs —
+              Cliquez ici pour filtrer les récoltes disponibles.
+            </p>
+          </div>
+        </button>
+
         {/* GRILLE DES PRODUITS / SERVICES */}
         {loading ? (
           <div className="py-16 text-center text-sm text-slate-500">
@@ -299,10 +365,80 @@ export default function DiscoverAfricaServicesPage() {
                           {item.description}
                         </p>
                       ) : null}
+
+                      {item.category === "Agriculture & Élevage" ? (
+                        <div className="mt-2 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1.5 text-xs">
+                          <div className="font-black text-emerald-950 leading-snug">
+                            🌾 {item.agriType || item.name} -{" "}
+                            {Math.max(0, item.stockQty - item.soldQty)}{" "}
+                            {item.unit || "unités"} disponibles -{" "}
+                            {formatCFA(item.price)} / {item.unit || "unité"}
+                          </div>
+                          <div className="font-bold text-emerald-800">
+                            {item.marketName || `Marché de ${item.city}`}
+                            {item.harvestDate
+                              ? ` - Récolté le ${new Date(
+                                  item.harvestDate
+                                ).toLocaleDateString("fr-FR")}`
+                              : ""}
+                          </div>
+                          <div className="text-[11px] font-semibold text-slate-600">
+                            WhatsApp du vendeur : {item.whatsappPhone}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="p-5 pt-0">
+                  <div className="p-5 pt-0 space-y-2.5">
+                    {item.category === "Agriculture & Élevage" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkItemId(
+                              bulkItemId === item.id ? null : item.id
+                            );
+                            setBulkQty(5);
+                          }}
+                          className="w-full py-3 px-4 rounded-2xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-sm font-black shadow-sm transition-colors"
+                        >
+                          🛒 Commander en gros
+                        </button>
+                        {bulkItemId === item.id ? (
+                          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-300 space-y-2.5">
+                            <label className="block text-xs font-extrabold text-[#0B1F3A]">
+                              Je veux combien de {item.unit || "unités"} ?
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={bulkQty}
+                              onChange={(e) =>
+                                setBulkQty(
+                                  Math.max(1, Number(e.target.value) || 1)
+                                )
+                              }
+                              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold"
+                            />
+                            <div className="text-sm font-black text-emerald-700">
+                              Total : {formatCFA(bulkQty * item.price)}
+                            </div>
+                            <a
+                              href={`https://wa.me/${waDigits}?text=${encodeURIComponent(
+                                `Bonjour ${item.shopName}, je veux commander en gros : ${bulkQty} ${item.unit || "unités"} de ${item.agriType || item.name} à ${formatCFA(item.price)} = ${formatCFA(bulkQty * item.price)} (${item.marketName || item.city}).`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black text-center"
+                            >
+                              ✅ Envoyer commande ({formatCFA(bulkQty * item.price)})
+                            </a>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+
                     <a
                       href={waHref}
                       target="_blank"

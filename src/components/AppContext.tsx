@@ -99,6 +99,12 @@ export interface NewCatalogInput {
   unitPrice: number;
 }
 
+export interface NewDocumentLineInput {
+  label: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface NewDocumentInput {
   docType: "invoice" | "quote";
   clientId?: string;
@@ -108,6 +114,9 @@ export interface NewDocumentInput {
   label: string;
   quantity: number;
   unitPrice: number;
+  lines?: NewDocumentLineInput[];
+  discountAmount?: number;
+  paidAmount?: number;
   applyVat: boolean;
 }
 
@@ -177,7 +186,8 @@ function isValidBusinessType(v: unknown): v is BusinessType {
     v === "clinique" ||
     v === "immobilier" ||
     v === "artisan" ||
-    v === "ong"
+    v === "ong" ||
+    v === "agriculture"
   );
 }
 
@@ -992,16 +1002,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      const { error: lineErr } = await supabase.from("document_lines").insert({
-        org_id: liveOrg.id,
-        document_id: draftDoc.id,
-        position: 1,
-        label: input.label.trim(),
-        quantity: input.quantity,
-        unit_price: input.unitPrice,
-        discount: 0,
-        vat_rate_bp: vatBp,
+      const rawLines =
+        input.lines && input.lines.length > 0
+          ? input.lines.filter((l) => l.label.trim() && l.quantity > 0)
+          : [
+              {
+                label: input.label.trim(),
+                quantity: input.quantity,
+                unitPrice: input.unitPrice,
+              },
+            ];
+
+      let remainingDiscount = Math.max(0, Math.round(input.discountAmount ?? 0));
+      const linesPayload = rawLines.map((l, idx) => {
+        const lineSubtotal = Math.max(0, Math.round(l.quantity * l.unitPrice));
+        const appliedDiscount = Math.min(lineSubtotal, remainingDiscount);
+        remainingDiscount -= appliedDiscount;
+        return {
+          org_id: liveOrg.id,
+          document_id: draftDoc.id,
+          position: idx + 1,
+          label: l.label.trim(),
+          quantity: l.quantity,
+          unit_price: l.unitPrice,
+          discount: appliedDiscount,
+          vat_rate_bp: vatBp,
+        };
       });
+
+      const { error: lineErr } = await supabase
+        .from("document_lines")
+        .insert(linesPayload);
 
       if (lineErr) {
         return { ok: false, error: lineErr.message };
@@ -1014,6 +1045,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (issueErr) {
         return { ok: false, error: issueErr.message };
+      }
+
+      const initialPaid = Math.max(0, Math.round(input.paidAmount ?? 0));
+      if (initialPaid > 0) {
+        await supabase.rpc("record_payment", {
+          p_org: liveOrg.id,
+          p_client: targetClientId,
+          p_amount: initialPaid,
+          p_method: "cash",
+          p_reference: "Acompte à la création",
+          p_document: draftDoc.id,
+        });
       }
 
       await refreshOrgData();

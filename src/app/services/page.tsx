@@ -43,8 +43,19 @@ export default function ServicesPage() {
           {BUSINESS_SERVICES.map((srv) => (
             <div
               key={srv.id}
-              className="bg-white rounded-2xl border-2 border-slate-200 hover:border-emerald-500 p-6 sm:p-7 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between space-y-6"
+              className="bg-white rounded-2xl border-2 border-slate-200 hover:border-emerald-500 overflow-hidden shadow-sm hover:shadow-lg transition-all flex flex-col justify-between"
             >
+              {srv.id === "agriculture" ? (
+                <div className="h-40 w-full overflow-hidden bg-emerald-950">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/agriculture-hero.jpg"
+                    alt="Agriculture et Élevage"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : null}
+              <div className="p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-3xl">
@@ -89,6 +100,7 @@ export default function ServicesPage() {
                 >
                   Choisir ce service
                 </Link>
+              </div>
               </div>
             </div>
           ))}

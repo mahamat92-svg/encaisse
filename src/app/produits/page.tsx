@@ -9,7 +9,11 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   AFRICA_CITIES,
   AFRICA_SERVICE_CATEGORIES,
+  AGRICULTURE_MARKETS,
+  AGRICULTURE_SUBCATEGORIES,
+  AGRICULTURE_UNITS,
   DEFAULT_MERCHANT_CITY,
+  formatAmountNumber,
   formatCFA,
   OFFICIAL_SITE_URL,
   OFFICIAL_WHATSAPP_DIGITS,
@@ -30,6 +34,13 @@ interface SocialProduct {
   shopLogoUrl: string;
   whatsappPhone: string;
   imageUrl: string;
+  subCategory: string;
+  agriType: string;
+  unit: string;
+  stockQty: number;
+  soldQty: number;
+  marketName: string;
+  harvestDate: string;
   whatsappCount: number;
   tiktokCount: number;
   facebookCount: number;
@@ -121,6 +132,23 @@ export default function PublishProductsPage() {
   const [category, setCategory] = useState<string>(
     AFRICA_SERVICE_CATEGORIES[0].id
   );
+  // Champs spéciaux Agriculture & Élevage
+  const [subCategory, setSubCategory] = useState<string>(
+    AGRICULTURE_SUBCATEGORIES[0].id
+  );
+  const [agriType, setAgriType] = useState<string>(
+    AGRICULTURE_SUBCATEGORIES[0].types[0]
+  );
+  const [unit, setUnit] = useState<string>(AGRICULTURE_UNITS[0]);
+  const [stockQty, setStockQty] = useState<string>("20");
+  const [marketChoice, setMarketChoice] = useState<string>(
+    AGRICULTURE_MARKETS[0]
+  );
+  const [customMarket, setCustomMarket] = useState<string>("");
+  const [harvestDate, setHarvestDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [sellingId, setSellingId] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -193,6 +221,13 @@ export default function PublishProductsPage() {
             row.whatsapp_phone || org.phone || OFFICIAL_WHATSAPP_DISPLAY
           ),
           imageUrl: String(row.image_url ?? ""),
+          subCategory: String(row.sub_category ?? ""),
+          agriType: String(row.agri_type ?? ""),
+          unit: String(row.unit ?? ""),
+          stockQty: Number(row.stock_qty ?? 0),
+          soldQty: Number(row.sold_qty ?? 0),
+          marketName: String(row.market_name ?? ""),
+          harvestDate: String(row.harvest_date ?? ""),
           whatsappCount: Number(row.whatsapp_count ?? 0),
           tiktokCount: Number(row.tiktok_count ?? 0),
           facebookCount: Number(row.facebook_count ?? 0),
@@ -242,12 +277,19 @@ export default function PublishProductsPage() {
       setFormError("La photo du produit ou service est obligatoire.");
       return;
     }
-    const cleanName = name.trim();
+    const isAgri = category === "Agriculture & Élevage";
+    const cleanName = name.trim() || (isAgri ? agriType : "");
     const numericPrice = Number(price);
     const resolvedCity =
       cityChoice === "Autre"
         ? customCity.trim() || DEFAULT_MERCHANT_CITY
         : cityChoice;
+    const resolvedMarket = isAgri
+      ? marketChoice === "Autre"
+        ? customMarket.trim() || `Marché de ${resolvedCity}`
+        : marketChoice
+      : "";
+    const numericStock = isAgri ? Math.max(0, Number(stockQty) || 0) : 0;
 
     if (!cleanName) {
       setFormError("Veuillez saisir le nom du produit ou service.");
@@ -308,7 +350,7 @@ export default function PublishProductsPage() {
       const shopName = org.name || "Ma Boutique";
       const merchantWa = org.phone || OFFICIAL_WHATSAPP_DISPLAY;
 
-      const { data: inserted, error: insErr } = await supabase
+      let { data: inserted, error: insErr } = await supabase
         .from("social_products")
         .insert({
           org_id: org.id,
@@ -322,9 +364,38 @@ export default function PublishProductsPage() {
           shop_logo_url: org.logoUrl || "",
           whatsapp_phone: merchantWa,
           image_url: publicImageUrl,
+          sub_category: isAgri ? subCategory : "",
+          agri_type: isAgri ? agriType : "",
+          unit: isAgri ? unit : "",
+          stock_qty: numericStock,
+          sold_qty: 0,
+          market_name: resolvedMarket,
+          harvest_date: isAgri ? harvestDate : "",
         })
         .select("*")
         .single();
+
+      if (insErr) {
+        const fb = await supabase
+          .from("social_products")
+          .insert({
+            org_id: org.id,
+            user_id: user.id,
+            name: cleanName,
+            price: Math.round(numericPrice),
+            description: description.trim(),
+            category,
+            city: resolvedCity,
+            shop_name: shopName,
+            shop_logo_url: org.logoUrl || "",
+            whatsapp_phone: merchantWa,
+            image_url: publicImageUrl,
+          })
+          .select("*")
+          .single();
+        inserted = fb.data;
+        insErr = fb.error;
+      }
 
       if (insErr) {
         setFormError(insErr.message);
@@ -344,6 +415,13 @@ export default function PublishProductsPage() {
             shopLogoUrl: String(inserted.shop_logo_url ?? org.logoUrl ?? ""),
             whatsappPhone: String(inserted.whatsapp_phone ?? merchantWa),
             imageUrl: String(inserted.image_url),
+            subCategory: String(inserted.sub_category ?? (isAgri ? subCategory : "")),
+            agriType: String(inserted.agri_type ?? (isAgri ? agriType : "")),
+            unit: String(inserted.unit ?? (isAgri ? unit : "")),
+            stockQty: Number(inserted.stock_qty ?? numericStock),
+            soldQty: Number(inserted.sold_qty ?? 0),
+            marketName: String(inserted.market_name ?? resolvedMarket),
+            harvestDate: String(inserted.harvest_date ?? (isAgri ? harvestDate : "")),
             whatsappCount: 0,
             tiktokCount: 0,
             facebookCount: 0,
@@ -692,6 +770,138 @@ ${desc}
               </div>
             ) : null}
 
+            {/* Champs spéciaux Agriculture & Élevage */}
+            {category === "Agriculture & Élevage" ? (
+              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-300 space-y-4">
+                <div className="text-sm sm:text-base font-black text-emerald-950">
+                  🌾 Détails Récolte / Élevage (Service Agriculture Pro)
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Sous-catégorie *
+                    </label>
+                    <select
+                      value={subCategory}
+                      onChange={(e) => {
+                        const nextSub = e.target.value;
+                        setSubCategory(nextSub);
+                        const found = AGRICULTURE_SUBCATEGORIES.find(
+                          (s) => s.id === nextSub
+                        );
+                        if (found && found.types.length > 0) {
+                          setAgriType(found.types[0]);
+                          if (!name.trim()) setName(found.types[0]);
+                        }
+                      }}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold text-[#0B1F3A]"
+                    >
+                      {AGRICULTURE_SUBCATEGORIES.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.emoji} {sub.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Produit / Type *
+                    </label>
+                    <select
+                      value={agriType}
+                      onChange={(e) => {
+                        setAgriType(e.target.value);
+                        setName(e.target.value);
+                      }}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold text-[#0B1F3A]"
+                    >
+                      {(
+                        AGRICULTURE_SUBCATEGORIES.find(
+                          (s) => s.id === subCategory
+                        )?.types || []
+                      ).map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Unité spéciale *
+                    </label>
+                    <select
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold text-[#0B1F3A]"
+                    >
+                      {AGRICULTURE_UNITS.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Quantité en stock ({unit}) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={stockQty}
+                      onChange={(e) => setStockQty(e.target.value)}
+                      placeholder="Ex: 20"
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Marché *
+                    </label>
+                    <select
+                      value={marketChoice}
+                      onChange={(e) => setMarketChoice(e.target.value)}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold text-[#0B1F3A]"
+                    >
+                      {AGRICULTURE_MARKETS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    {marketChoice === "Autre" ? (
+                      <input
+                        type="text"
+                        value={customMarket}
+                        onChange={(e) => setCustomMarket(e.target.value)}
+                        placeholder="Ex: Marché de Figuil"
+                        className="mt-2 w-full px-3.5 py-2.5 rounded-xl bg-white border border-emerald-300 text-sm"
+                      />
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-emerald-900 mb-1.5">
+                      Date de récolte
+                    </label>
+                    <input
+                      type="date"
+                      value={harvestDate}
+                      onChange={(e) => setHarvestDate(e.target.value)}
+                      className="w-full px-3.5 py-3 rounded-xl bg-white border border-emerald-300 text-sm font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <button
               type="submit"
               disabled={saving}
@@ -701,6 +911,61 @@ ${desc}
             </button>
           </form>
         ) : null}
+
+        {/* TABLEAU DE BORD AGRICOLE */}
+        {(() => {
+          const agriProducts = products.filter(
+            (p) => p.category === "Agriculture & Élevage"
+          );
+          if (agriProducts.length === 0) return null;
+          const totalStock = agriProducts.reduce(
+            (sum, p) => sum + Math.max(0, p.stockQty),
+            0
+          );
+          const totalSold = agriProducts.reduce(
+            (sum, p) => sum + Math.max(0, p.soldQty),
+            0
+          );
+          const totalLeft = Math.max(0, totalStock - totalSold);
+          const totalRevenue = agriProducts.reduce(
+            (sum, p) => sum + Math.max(0, p.soldQty) * p.price,
+            0
+          );
+          return (
+            <section className="p-5 rounded-3xl bg-emerald-950 text-white shadow-md space-y-3">
+              <div className="text-sm sm:text-base font-black flex items-center gap-2">
+                <span>🌾</span>
+                <span>Tableau de bord Agricole</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
+                <div className="p-3 rounded-2xl bg-white/10">
+                  <div className="text-emerald-200 font-bold">Stock total</div>
+                  <div className="text-lg sm:text-xl font-black mt-0.5">
+                    {totalStock} unités
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/10">
+                  <div className="text-emerald-200 font-bold">Vendu</div>
+                  <div className="text-lg sm:text-xl font-black mt-0.5">
+                    {totalSold} unités
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/10">
+                  <div className="text-emerald-200 font-bold">Reste</div>
+                  <div className="text-lg sm:text-xl font-black text-amber-300 mt-0.5">
+                    {totalLeft} unités
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-white/10">
+                  <div className="text-emerald-200 font-bold">Recette totale</div>
+                  <div className="text-lg sm:text-xl font-black text-emerald-300 mt-0.5">
+                    {formatCFA(totalRevenue)}
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* LISTE EN CARTES + BOUTONS PUBLIER EN 1 CLIC + HISTORIQUE */}
         {loading ? (
@@ -775,6 +1040,90 @@ ${desc}
                         <p className="text-sm text-slate-600 leading-relaxed">
                           {product.description}
                         </p>
+                      ) : null}
+
+                      {product.category === "Agriculture & Élevage" ? (
+                        <div className="mt-2 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2 text-xs">
+                          <div className="font-extrabold text-emerald-950">
+                            🌾 {product.agriType || product.name} ·{" "}
+                            {Math.max(0, product.stockQty - product.soldQty)}{" "}
+                            {product.unit || "unités"} disponibles ·{" "}
+                            {formatCFA(product.price)} / {product.unit || "unité"}
+                          </div>
+                          <div className="text-emerald-800 font-semibold">
+                            🏪 {product.marketName || `Marché de ${product.city}`}
+                            {product.harvestDate
+                              ? ` · 📅 Récolté le ${new Date(
+                                  product.harvestDate
+                                ).toLocaleDateString("fr-FR")}`
+                              : ""}
+                          </div>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              disabled={
+                                sellingId === product.id ||
+                                product.stockQty - product.soldQty <= 0
+                              }
+                              onClick={async () => {
+                                setSellingId(product.id);
+                                try {
+                                  const nextSold = product.soldQty + 1;
+                                  const supabase = createClient();
+                                  await supabase
+                                    .from("social_products")
+                                    .update({ sold_qty: nextSold })
+                                    .eq("id", product.id);
+                                  setProducts((prev) =>
+                                    prev.map((p) =>
+                                      p.id === product.id
+                                        ? { ...p, soldQty: nextSold }
+                                        : p
+                                    )
+                                  );
+                                } finally {
+                                  setSellingId(null);
+                                }
+                              }}
+                              className="px-3 py-2 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white font-extrabold disabled:opacity-40"
+                            >
+                              {sellingId === product.id
+                                ? "Mise à jour..."
+                                : "✅ Enregistrer 1 vente (-1 stock)"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!isSubscriptionPaid) {
+                                  setBlockedAlert(SUBSCRIPTION_BLOCK_MSG);
+                                  return;
+                                }
+                                const remaining = Math.max(
+                                  0,
+                                  product.stockQty - product.soldQty
+                                );
+                                const unitLabel = product.unit || "unités";
+                                const harvestText = `Nouvelle récolte à ${product.city} ! ${product.agriType || product.name} frais, ${remaining} ${unitLabel} à ${formatAmountNumber(product.price)} XAF / ${unitLabel}. Commande par WhatsApp : ${product.whatsappPhone} - ${product.shopName}`;
+                                await copyTextSafe(harvestText);
+                                setPublishFeedback({
+                                  productId: product.id,
+                                  channel: "whatsapp",
+                                  message: harvestText,
+                                  imageUrl: product.imageUrl,
+                                  productName: product.name,
+                                });
+                                window.open(
+                                  `https://wa.me/?text=${encodeURIComponent(harvestText)}`,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                );
+                              }}
+                              className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold"
+                            >
+                              🌾 Publier ma récolte
+                            </button>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   </div>

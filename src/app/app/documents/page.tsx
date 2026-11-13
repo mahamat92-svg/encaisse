@@ -3,20 +3,31 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAppState } from "@/components/AppContext";
+import { CompanyAvatar } from "@/components/CompanyAvatar";
 import {
   buildInvoiceWhatsAppMessage,
-  computeLineTotals,
+  formatAmountNumber,
   formatCFA,
   formatDate,
 } from "@/lib/format";
 import { WhatsAppShareButton } from "@/components/WhatsAppButton";
+
+interface InvoiceFormLine {
+  id: string;
+  label: string;
+  quantity: number;
+  unitPrice: string;
+}
 
 interface CreatedInvoiceShare {
   clientName: string;
   clientPhone: string;
   invoiceNumber: string;
   productName: string;
+  linesSummary: string;
   amount: number;
+  paidAmount: number;
+  balanceAmount: number;
   publicToken: string;
 }
 
@@ -38,14 +49,58 @@ export default function DocumentsPage() {
   const [dueDate, setDueDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
-  const [label, setLabel] = useState("");
-  const [quantity, setQuantity] = useState<number>(1);
-  const [unitPrice, setUnitPrice] = useState<string>("");
+  const [lines, setLines] = useState<InvoiceFormLine[]>([
+    { id: "line-1", label: "", quantity: 1, unitPrice: "" },
+  ]);
+  const [discountInput, setDiscountInput] = useState<string>("");
+  const [paidInput, setPaidInput] = useState<string>("");
   const [applyVat, setApplyVat] = useState(org.vatRegistered);
 
   React.useEffect(() => {
     setApplyVat(org.vatRegistered);
   }, [org.vatRegistered]);
+
+  // Calcul automatique en direct
+  const totalQuantity = lines.reduce(
+    (sum, l) => sum + Math.max(0, Number(l.quantity) || 0),
+    0
+  );
+  const subtotalAmount = lines.reduce(
+    (sum, l) =>
+      sum +
+      Math.max(0, Number(l.quantity) || 0) *
+        Math.max(0, Number(l.unitPrice) || 0),
+    0
+  );
+  const discountVal = Math.max(0, Math.round(Number(discountInput) || 0));
+  const totalToPay = Math.max(0, subtotalAmount - discountVal);
+  const paidVal = Math.max(0, Math.round(Number(paidInput) || 0));
+  const remainingToPay = Math.max(0, totalToPay - paidVal);
+
+  function addLine() {
+    setLines((prev) => [
+      ...prev,
+      {
+        id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        label: "",
+        quantity: 1,
+        unitPrice: "",
+      },
+    ]);
+  }
+
+  function removeLine(id: string) {
+    setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
+  }
+
+  function updateLine(
+    id: string,
+    patch: Partial<Pick<InvoiceFormLine, "label" | "quantity" | "unitPrice">>
+  ) {
+    setLines((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, ...patch } : l))
+    );
+  }
 
   const origin =
     typeof window !== "undefined"
@@ -64,6 +119,19 @@ export default function DocumentsPage() {
     setLastCreated(null);
     setSaving(true);
     try {
+      const validLines = lines
+        .map((l) => ({
+          label: l.label.trim(),
+          quantity: Math.max(1, Number(l.quantity) || 1),
+          unitPrice: Math.max(0, Number(l.unitPrice) || 0),
+        }))
+        .filter((l) => l.label.length > 0);
+
+      if (validLines.length === 0) {
+        setError("Veuillez saisir au moins un produit.");
+        return;
+      }
+
       const selectedClient = org.clients.find((c) => c.id === clientId);
       const finalClientName = selectedClient
         ? selectedClient.name
@@ -71,12 +139,13 @@ export default function DocumentsPage() {
       const finalClientPhone = selectedClient
         ? selectedClient.phone
         : newClientPhone.trim();
-      const totalAmount = computeLineTotals(
-        Number(quantity) || 1,
-        Number(unitPrice) || 0,
-        0,
-        applyVat ? 1925 : 0
-      ).total;
+
+      const linesSummary = validLines
+        .map(
+          (l) =>
+            `${l.label} ${l.quantity} x ${formatAmountNumber(l.unitPrice)} = ${formatAmountNumber(l.quantity * l.unitPrice)}`
+        )
+        .join(", ");
 
       const res = await createDocumentRecord({
         docType,
@@ -84,10 +153,13 @@ export default function DocumentsPage() {
         newClientName: !clientId ? newClientName : undefined,
         newClientPhone: !clientId ? newClientPhone : undefined,
         dueDate,
-        label,
-        quantity: Number(quantity) || 1,
-        unitPrice: Number(unitPrice) || 0,
-        applyVat,
+        label: validLines[0].label,
+        quantity: validLines[0].quantity,
+        unitPrice: validLines[0].unitPrice,
+        lines: validLines,
+        discountAmount: discountVal,
+        paidAmount: paidVal,
+        applyVat: false,
       });
       if (!res.ok) {
         setError(res.error || "Erreur lors de la création de la facture.");
@@ -98,14 +170,18 @@ export default function DocumentsPage() {
         clientName: finalClientName || "Client",
         clientPhone: finalClientPhone || "",
         invoiceNumber: res.number || "FAC",
-        productName: label.trim() || "votre commande",
-        amount: totalAmount,
+        productName: validLines.map((l) => l.label).join(", "),
+        linesSummary,
+        amount: totalToPay,
+        paidAmount: paidVal,
+        balanceAmount: remainingToPay,
         publicToken: res.publicToken || "",
       });
 
       setShowCreate(false);
-      setLabel("");
-      setUnitPrice("");
+      setLines([{ id: "line-1", label: "", quantity: 1, unitPrice: "" }]);
+      setDiscountInput("");
+      setPaidInput("");
       setNewClientName("");
       setNewClientPhone("");
     } finally {
@@ -153,7 +229,10 @@ export default function DocumentsPage() {
                 clientName: lastCreated.clientName,
                 invoiceNumber: lastCreated.invoiceNumber,
                 amount: lastCreated.amount,
+                paidAmount: lastCreated.paidAmount,
+                balanceAmount: lastCreated.balanceAmount,
                 productName: lastCreated.productName,
+                linesSummary: lastCreated.linesSummary,
                 paymentUrl: `${origin}/pay/${lastCreated.publicToken}`,
                 merchantName: org.name,
                 merchantCity: org.city,
@@ -278,71 +357,218 @@ export default function DocumentsPage() {
             </div>
           ) : null}
 
-          {org.catalog.length > 0 ? (
-            <div className="space-y-1">
-              <div className="text-[11px] font-bold text-slate-500">
-                Sélectionner un produit de votre catalogue :
+          {/* En-tête entreprise du client sur la facture */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+            <CompanyAvatar logoUrl={org.logoUrl} name={org.name} size={44} />
+            <div className="min-w-0 text-xs">
+              <div className="font-extrabold text-[#0B1F3A] truncate">
+                {org.name}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {org.catalog.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setLabel(item.name);
-                      setUnitPrice(String(item.unitPrice));
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-xs font-semibold text-slate-700 border border-slate-200"
-                  >
-                    + {item.name} ({formatCFA(item.unitPrice)})
-                  </button>
-                ))}
+              <div className="text-slate-600 truncate">
+                {org.address || org.city} · WhatsApp : {org.phone}
               </div>
             </div>
-          ) : null}
+          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Produit / Désignation *
-              </label>
-              <input
-                type="text"
-                required
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Nom du produit ou service"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"
-              />
+          {/* Lignes de produits avec calcul en direct */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-extrabold uppercase text-[#0B1F3A]">
+                Produits / Services ({lines.length})
+              </div>
+              <button
+                type="button"
+                onClick={addLine}
+                className="px-3 py-1.5 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold"
+              >
+                + Ajouter un produit
+              </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Quantité *
-              </label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"
-              />
+            {lines.map((line, idx) => {
+              const lineTotal =
+                Math.max(0, Number(line.quantity) || 0) *
+                Math.max(0, Number(line.unitPrice) || 0);
+              return (
+                <div
+                  key={line.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-slate-600">
+                      Ligne {idx + 1}
+                    </span>
+                    {lines.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removeLine(line.id)}
+                        className="text-xs font-bold text-red-600 hover:underline"
+                      >
+                        Supprimer
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {org.catalog.length > 0 ? (
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const found = org.catalog.find(
+                          (c) => c.id === e.target.value
+                        );
+                        if (found) {
+                          updateLine(line.id, {
+                            label: found.name,
+                            unitPrice: String(found.unitPrice),
+                          });
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-[#0B1F3A]"
+                    >
+                      <option value="">
+                        -- Choisir vite dans mon catalogue --
+                      </option>
+                      {org.catalog.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({formatCFA(item.unitPrice)})
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div className="sm:col-span-5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Produit / Service *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={line.label}
+                        onChange={(e) =>
+                          updateLine(line.id, { label: e.target.value })
+                        }
+                        placeholder="Ex: Mil 50kg, Pain, Riz..."
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Quantité *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        required
+                        value={line.quantity}
+                        onChange={(e) =>
+                          updateLine(line.id, {
+                            quantity: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Prix (XAF) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        required
+                        value={line.unitPrice}
+                        onChange={(e) =>
+                          updateLine(line.id, { unitPrice: e.target.value })
+                        }
+                        placeholder="0"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 text-left sm:text-right">
+                      <div className="text-[11px] font-bold text-slate-500">
+                        Total ligne
+                      </div>
+                      <div className="text-sm font-black text-emerald-700">
+                        {formatCFA(lineTotal)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Réduction & Déjà payé + Calculs automatiques en direct */}
+          <div className="p-4 rounded-2xl bg-[#0B1F3A]/5 border border-slate-200 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Réduction (XAF, optionnel)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={discountInput}
+                  onChange={(e) => setDiscountInput(e.target.value)}
+                  placeholder="Ex: 5000"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Montant déjà payé (XAF)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={paidInput}
+                  onChange={(e) => setPaidInput(e.target.value)}
+                  placeholder="Ex: 50000"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Prix unitaire (XAF) *
-              </label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                placeholder="0"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm"
-              />
+            <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs sm:text-sm">
+              <div className="flex justify-between text-slate-600 font-semibold">
+                <span>Quantité totale</span>
+                <span>{totalQuantity} au total</span>
+              </div>
+              <div className="flex justify-between text-slate-700 font-bold">
+                <span>Sous-total</span>
+                <span>{formatCFA(subtotalAmount)}</span>
+              </div>
+              {discountVal > 0 ? (
+                <div className="flex justify-between text-amber-700 font-bold">
+                  <span>Réduction</span>
+                  <span>- {formatCFA(discountVal)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between text-base font-black text-[#0B1F3A] pt-1 border-t border-slate-200">
+                <span>TOTAL À PAYER</span>
+                <span>{formatCFA(totalToPay)}</span>
+              </div>
+              <div className="flex justify-between text-slate-700 font-bold">
+                <span>Montant déjà payé</span>
+                <span>{formatCFA(paidVal)}</span>
+              </div>
+              <div
+                className={`flex justify-between text-base font-black ${
+                  remainingToPay === 0 ? "text-emerald-700" : "text-red-600"
+                }`}
+              >
+                <span>RESTE À PAYER</span>
+                <span>
+                  {remainingToPay === 0
+                    ? "0 XAF · ✅ Payé"
+                    : formatCFA(remainingToPay)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -352,37 +578,13 @@ export default function DocumentsPage() {
             </div>
           ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
-            <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={applyVat}
-                onChange={(e) => setApplyVat(e.target.checked)}
-              />
-              <span>Appliquer la TVA (19,25 %)</span>
-            </label>
-
-            <div className="flex items-center gap-4">
-              <div className="text-sm font-extrabold text-[#0B1F3A]">
-                Total :{" "}
-                {formatCFA(
-                  computeLineTotals(
-                    Number(quantity) || 1,
-                    Number(unitPrice) || 0,
-                    0,
-                    applyVat ? 1925 : 0
-                  ).total
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold disabled:opacity-50"
-              >
-                {saving ? "Création en cours..." : "Créer la facture"}
-              </button>
-            </div>
-          </div>
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black shadow-sm disabled:opacity-50"
+          >
+            {saving ? "Création en cours..." : "✅ Créer la facture"}
+          </button>
         </form>
       ) : null}
 
@@ -446,11 +648,20 @@ export default function DocumentsPage() {
               const paymentUrl = `${origin}/pay/${doc.publicToken}`;
               const productName =
                 doc.lines.map((l) => l.label).join(", ") || "votre commande";
+              const linesSummary = doc.lines
+                .map(
+                  (l) =>
+                    `${l.label} ${l.quantity} x ${formatAmountNumber(l.unitPrice)} = ${formatAmountNumber(l.total)}`
+                )
+                .join(", ");
               const waMsg = buildInvoiceWhatsAppMessage({
                 clientName: doc.clientName,
                 invoiceNumber: doc.number,
                 amount: doc.total,
+                paidAmount: doc.paidTotal,
+                balanceAmount: doc.balance,
                 productName,
+                linesSummary,
                 paymentUrl,
                 merchantName: org.name,
                 merchantCity: org.city,
@@ -597,6 +808,61 @@ export default function DocumentsPage() {
               </div>
             </section>
           ) : null}
+
+          {/* Résumé mensuel calculé depuis Supabase */}
+          {(() => {
+            const now = new Date();
+            const monthKey = `${now.getFullYear()}-${String(
+              now.getMonth() + 1
+            ).padStart(2, "0")}`;
+            const monthRevenue = org.documents
+              .filter((d) => (d.issueDate || "").startsWith(monthKey))
+              .reduce((sum, d) => sum + (d.paidTotal || 0), 0);
+            const paidCount = org.documents.filter(
+              (d) => d.status === "paid" || d.balance === 0
+            ).length;
+            const unpaidCount = org.documents.filter(
+              (d) => d.balance > 0
+            ).length;
+            const totalToCollect = org.documents.reduce(
+              (sum, d) => sum + Math.max(0, d.balance || 0),
+              0
+            );
+            return (
+              <section className="p-4 sm:p-5 rounded-2xl bg-[#0B1F3A] text-white grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <div className="text-slate-300 font-semibold">
+                    Recettes totales ce mois
+                  </div>
+                  <div className="text-base font-black text-emerald-400 mt-0.5">
+                    {formatCFA(monthRevenue)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-300 font-semibold">
+                    Factures payées
+                  </div>
+                  <div className="text-base font-black mt-0.5">{paidCount}</div>
+                </div>
+                <div>
+                  <div className="text-slate-300 font-semibold">
+                    Factures impayées
+                  </div>
+                  <div className="text-base font-black text-amber-300 mt-0.5">
+                    {unpaidCount}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-300 font-semibold">
+                    Reste à encaisser
+                  </div>
+                  <div className="text-base font-black text-red-300 mt-0.5">
+                    {formatCFA(totalToCollect)}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
         </>
       )}
     </div>

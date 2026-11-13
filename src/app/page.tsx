@@ -311,36 +311,48 @@ export default function HomePage() {
             {BUSINESS_SERVICES.map((srv) => (
               <div
                 key={srv.id}
-                className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-5"
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
               >
-                <div className="space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-2xl">
-                    {srv.emoji}
+                {srv.id === "agriculture" ? (
+                  <div className="h-36 w-full overflow-hidden bg-emerald-950">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/agriculture-hero.jpg"
+                      alt="Agriculture et Élevage"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <h3 className="text-lg font-extrabold text-[#0B1F3A]">
-                    {srv.title}
-                  </h3>
-                  <p className="text-xs font-bold text-emerald-700">
-                    {srv.subtitle}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {srv.bullets.map((f) => (
-                      <span
-                        key={f}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold"
-                      >
-                        ✓ {f}
-                      </span>
-                    ))}
+                ) : null}
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-5">
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-2xl">
+                      {srv.emoji}
+                    </div>
+                    <h3 className="text-lg font-extrabold text-[#0B1F3A]">
+                      {srv.title}
+                    </h3>
+                    <p className="text-xs font-bold text-emerald-700">
+                      {srv.subtitle}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {srv.bullets.map((f) => (
+                        <span
+                          key={f}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-semibold"
+                        >
+                          ✓ {f}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <Link
-                  href={`/signup?service=${srv.id}`}
-                  className="block w-full py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold text-center transition-colors"
-                >
-                  Choisir ce service
-                </Link>
+                  <Link
+                    href={`/signup?service=${srv.id}`}
+                    className="block w-full py-3 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold text-center transition-colors"
+                  >
+                    Choisir ce service
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
