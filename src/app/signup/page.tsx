@@ -123,7 +123,19 @@ function SignupCardContent() {
       });
 
       if (signUpErr) {
-        setErrorMsg(translateAuthOrNetworkError(signUpErr.message));
+        const lower = signUpErr.message.toLowerCase();
+        if (
+          lower.includes("rate limit") ||
+          lower.includes("too many requests") ||
+          lower.includes("429") ||
+          lower.includes("security purposes")
+        ) {
+          setErrorMsg(
+            "Le serveur est très sollicité pour le moment. Clique sur « Contacter l'aide WhatsApp +235 66 26 85 03 » ou réessaie dans un instant."
+          );
+        } else {
+          setErrorMsg(translateAuthOrNetworkError(signUpErr.message));
+        }
         setLoading(false);
         return;
       }
@@ -252,8 +264,8 @@ function SignupCardContent() {
   }
 
   return (
-    <main className="flex-1 bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] flex items-center justify-center px-4 py-10 sm:py-14">
-      <div className="w-full max-w-xl bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6">
+    <main className="flex-1 overflow-x-hidden bg-gradient-to-b from-[#0B1F3A] via-[#0B1F3A] to-[#132D54] flex items-center justify-center px-3 sm:px-4 py-8 sm:py-14">
+      <div className="w-full max-w-xl min-w-0 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-8 space-y-5">
         <div className="space-y-2 text-center border-b border-slate-100 pb-5">
           <div className="flex justify-center">
             <div className="w-[80px] h-[80px] rounded-2xl bg-[#0B1F3A] border border-emerald-500/40 shadow-md overflow-hidden flex items-center justify-center">
@@ -279,6 +291,22 @@ function SignupCardContent() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
+          {errorMsg ? (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs sm:text-sm font-bold text-amber-900 space-y-2">
+              <div>⚠️ {errorMsg}</div>
+              <a
+                href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
+                  `Bonjour InnovTech MHA Infinity, j'ai besoin d'aide pour créer mon compte (${email || "mon email"}).`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-extrabold text-center"
+              >
+                💬 Contacter l&apos;aide WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}
+              </a>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -429,7 +457,7 @@ function SignupCardContent() {
                 return (
                   <label
                     key={cat.id}
-                    className={`cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 text-xs transition-all ${checked
+                    className={`w-full min-w-0 cursor-pointer flex items-start gap-2.5 p-3 rounded-xl border-2 text-xs transition-all ${checked
                         ? "border-emerald-600 bg-emerald-50 text-[#0B1F3A] shadow-xs"
                         : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
                       }`}
@@ -445,11 +473,11 @@ function SignupCardContent() {
                       }}
                       className="accent-emerald-600 w-4 h-4 mt-0.5 shrink-0"
                     />
-                    <div>
-                      <div className="font-extrabold">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-extrabold break-words">
                         {cat.emoji} {cat.label}
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      <div className="text-[11px] text-slate-500 mt-0.5 leading-snug break-words">
                         {cat.examples}
                       </div>
                     </div>
@@ -459,57 +487,45 @@ function SignupCardContent() {
             </div>
           </div>
 
-          {errorMsg ? (
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 space-y-2">
-              <div>⚠️ {errorMsg}</div>
-              <a
-                href={`https://wa.me/${OFFICIAL_WHATSAPP_DIGITS}?text=${encodeURIComponent(
-                  `Bonjour InnovTech MHA Infinity, j'ai besoin d'aide pour créer mon compte (${email || "mon email"}).`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#25D366] text-white text-xs font-extrabold"
-              >
-                💬 Contacter l&apos;aide WhatsApp {OFFICIAL_WHATSAPP_DISPLAY}
-              </a>
-            </div>
-          ) : null}
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base font-extrabold shadow-lg transition-colors disabled:opacity-50"
+            className="w-full py-4 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base font-extrabold text-center shadow-lg transition-colors disabled:opacity-50"
           >
             {loading ? "Création de votre compte..." : "Créer mon compte gratuit"}
           </button>
         </form>
 
-        <div className="pt-4 border-t border-slate-100 text-center space-y-2">
+        <div className="pt-4 border-t border-slate-100 text-center space-y-2.5">
           <div>
             <Link
               href="/login"
-              className="text-xs sm:text-sm font-extrabold text-[#0B1F3A] hover:underline"
+              className="inline-block py-1.5 text-sm font-extrabold text-[#0B1F3A] hover:underline"
             >
               Déjà un compte ? Se connecter
             </Link>
           </div>
-          <div className="text-xs font-bold text-slate-600">
-            Support:{" "}
-            <a
-              href={`mailto:${OFFICIAL_EMAIL}`}
-              className="text-[#0B1F3A] underline"
-            >
-              {OFFICIAL_EMAIL}
-            </a>{" "}
-            ·{" "}
-            <a
-              href="https://wa.me/23566268503"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#128C7E] underline"
-            >
-              WhatsApp: +235 66 26 85 03
-            </a>
+          <div className="text-xs font-bold text-slate-600 space-y-1">
+            <div className="break-all">
+              Support :{" "}
+              <a
+                href={`mailto:${OFFICIAL_EMAIL}`}
+                className="text-[#0B1F3A] underline"
+              >
+                {OFFICIAL_EMAIL}
+              </a>
+            </div>
+            <div>
+              WhatsApp :{" "}
+              <a
+                href="https://wa.me/23566268503"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#128C7E] underline"
+              >
+                +235 66 26 85 03
+              </a>
+            </div>
           </div>
         </div>
       </div>

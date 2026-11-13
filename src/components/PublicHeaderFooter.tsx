@@ -93,10 +93,11 @@ export function PublicNavbar() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      {/* Desktop Header (inchangé, une seule ligne propre) */}
+      <div className="hidden md:flex max-w-7xl mx-auto px-6 h-16 items-center justify-between gap-4">
         <BrandLogo />
 
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <nav className="flex items-center gap-6 text-sm font-medium text-slate-600">
           {links.map((item) => {
             const active = pathname === item.href;
             return (
@@ -115,39 +116,66 @@ export function PublicNavbar() {
           })}
         </nav>
 
-        {/* Toujours afficher "Se connecter" + "S'inscrire Gratuit" côte à côte (Desktop & Mobile) */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Link
             href="/login"
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] transition-colors"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] transition-colors"
           >
             Se connecter
           </Link>
 
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
           >
             S&apos;inscrire Gratuit
           </Link>
         </div>
       </div>
 
-      {/* Navigation mobile rapide */}
-      <div className="flex md:hidden items-center justify-around border-t border-slate-100 bg-slate-50/80 py-2 px-2 text-xs font-medium text-slate-600">
-        {links.map((item) => (
+      {/* Mobile Header (360px+ : 3 lignes propres sans aucun chevauchement) */}
+      <div className="flex flex-col md:hidden">
+        {/* Ligne 1 : Logo tout seul à gauche, petit et propre */}
+        <div className="px-3 py-2.5 flex items-center justify-start">
+          <BrandLogo size={32} />
+        </div>
+
+        {/* Ligne 2 : Les 2 boutons en pleine largeur, côte à côte, jamais coupés */}
+        <div className="px-3 pb-2.5 grid grid-cols-2 gap-2 w-full">
           <Link
-            key={item.href}
-            href={item.href}
-            className={
-              pathname === item.href
-                ? "text-emerald-700 font-bold"
-                : "hover:text-slate-900"
-            }
+            href="/login"
+            className="w-full inline-flex items-center justify-center px-2 py-2.5 rounded-xl text-xs font-extrabold bg-white hover:bg-slate-50 text-[#0B1F3A] border-2 border-[#0B1F3A] text-center whitespace-nowrap"
           >
-            {item.label}
+            Se connecter
           </Link>
-        ))}
+
+          <Link
+            href="/signup"
+            className="w-full inline-flex items-center justify-center px-2 py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm text-center whitespace-nowrap"
+          >
+            S&apos;inscrire Gratuit
+          </Link>
+        </div>
+
+        {/* Ligne 3 : Menu en scroll horizontal propre avec espace entre chaque mot */}
+        <nav className="flex items-center gap-5 overflow-x-auto whitespace-nowrap border-t border-slate-100 bg-slate-50/90 py-2.5 px-4 text-xs font-semibold text-slate-600">
+          {links.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={
+                  active
+                    ? "text-emerald-700 font-extrabold shrink-0"
+                    : "hover:text-[#0B1F3A] shrink-0"
+                }
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );
