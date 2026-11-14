@@ -25,7 +25,7 @@ export function FapshiSubscriptionCheckout({
   const [planId, setPlanId] = useState<"pro" | "business">("pro");
   const [method, setMethod] = useState<CameroonOperator>("Orange Money");
   const [manualOverride, setManualOverride] = useState(false);
-  const [phone, setPhone] = useState("");
+  const [paymentPhone, setPaymentPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -41,9 +41,12 @@ export function FapshiSubscriptionCheckout({
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const parsedPhone = useMemo(() => normalizeCameroonPhone(phone), [phone]);
+  const parsedPhone = useMemo(
+    () => normalizeCameroonPhone(paymentPhone),
+    [paymentPhone]
+  );
   const amount = planId === "business" ? 15000 : 5000;
-  const hasTypedPhone = phone.trim().length > 0;
+  const hasTypedPhone = paymentPhone.trim().length > 0;
   const isPhoneInvalid = hasTypedPhone && !parsedPhone.valid;
 
   // Auto-détecte l'opérateur tant que l'utilisateur n'a pas forcé manuellement
@@ -123,7 +126,9 @@ export function FapshiSubscriptionCheckout({
   async function handleStartPayment(selectedPlan: "pro" | "business") {
     if (!parsedPhone.valid) {
       setStatusType("error");
-      setStatusMessage("Numéro invalide, vérifie ton numéro : ex 640633834");
+      setStatusMessage(
+        "Mets un numéro Orange / MTN Cameroun valide, 9 chiffres qui commencent par 6"
+      );
       return;
     }
 
@@ -144,7 +149,7 @@ export function FapshiSubscriptionCheckout({
           planId: selectedPlan,
           amount: chosenAmount,
           method,
-          phone: parsedPhone.local9,
+          paymentPhone: parsedPhone.local9,
           customerName: org.name || "Hadja production",
           orgId: org.id,
         }),
@@ -218,17 +223,17 @@ export function FapshiSubscriptionCheckout({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <label
-            htmlFor="fapshi-phone"
+            htmlFor="fapshi-payment-phone"
             className="block text-xs font-extrabold text-slate-700"
           >
-            1. Ton numéro Mobile Money (Cameroun)
+            Numéro Orange Money / MTN MoMo pour payer
           </label>
           <input
-            id="fapshi-phone"
+            id="fapshi-payment-phone"
             type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="ex: 640633834 ou +237 640 63 38 34"
+            value={paymentPhone}
+            onChange={(e) => setPaymentPhone(e.target.value)}
+            placeholder="Ex: 640633034"
             className={`w-full rounded-xl border px-4 py-3 text-sm font-bold text-[#0B1F3A] bg-[#F8FAFC] focus:outline-none ${
               isPhoneInvalid
                 ? "border-red-500 focus:border-red-600"
@@ -239,7 +244,7 @@ export function FapshiSubscriptionCheckout({
           />
           {isPhoneInvalid && (
             <p className="text-xs font-bold text-red-600">
-              Numéro invalide, vérifie ton numéro : ex 640633834
+              Mets un numéro Orange / MTN Cameroun valide, 9 chiffres qui commencent par 6
             </p>
           )}
           {parsedPhone.valid && (

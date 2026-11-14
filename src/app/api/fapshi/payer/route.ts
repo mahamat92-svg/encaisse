@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       planId?: string;
       amount?: number;
       method?: string;
+      paymentPhone?: string;
       phone?: string;
       customerName?: string;
       orgId?: string;
@@ -66,14 +67,17 @@ export async function POST(request: Request) {
       body.method || ""
     );
 
-    const parsedPhone = normalizeCameroonPhone(body.phone || "");
+    // Utilise UNIQUEMENT paymentPhone (jamais le numéro WhatsApp +235)
+    const rawPaymentPhone = (body.paymentPhone || body.phone || "").trim();
+    const parsedPhone = normalizeCameroonPhone(rawPaymentPhone);
     if (!parsedPhone.valid) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
           fapshiStatus: "FAILED",
-          error: "Numéro invalide, vérifie ton numéro : ex 640633834",
+          error:
+            "Mets un numéro Orange / MTN Cameroun valide, 9 chiffres qui commencent par 6",
         },
         { status: 400 }
       );
@@ -96,8 +100,8 @@ export async function POST(request: Request) {
       95
     );
 
-    // Formate le téléphone en 237XXXXXXXXX sans '+' et sans espace avant l'envoi
-    const phoneForFapshi = parsedPhone.intl237;
+    // Fapshi Direct Pay Cameroun attend exactement 9 chiffres locaux commençant par 6 (ex: 640633034)
+    const phoneForFapshi = parsedPhone.local9;
 
     const payload = {
       amount,
