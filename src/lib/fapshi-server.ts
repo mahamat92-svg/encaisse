@@ -18,17 +18,10 @@ export function getFapshiServerConfig(): FapshiServerConfig {
   const boutiqueId = (process.env.FAPSHI_BOUTIQUE_ID || "").trim();
   const boutiqueUrl = (process.env.FAPSHI_BOUTIQUE_URL || "").trim();
 
-  const explicitBaseUrl = (process.env.FAPSHI_BASE_URL || "")
-    .trim()
-    .replace(/\/+$/, "");
-
-  const isSandbox = explicitBaseUrl
-    ? explicitBaseUrl.includes("sandbox")
-    : process.env.FAPSHI_ENV === "sandbox" || apiKey.startsWith("FAK_TEST_");
-
-  const baseUrl =
-    explicitBaseUrl ||
-    (isSandbox ? "https://sandbox.fapshi.com" : "https://live.fapshi.com");
+  const isSandbox = apiKey.startsWith("FAK_TEST");
+  const baseUrl = isSandbox
+    ? "https://sandbox.fapshi.com"
+    : "https://live.fapshi.com";
 
   const rawAppUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
   const appUrl =

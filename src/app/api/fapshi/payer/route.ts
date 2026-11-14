@@ -27,21 +27,29 @@ function resolveOperator(method: string): {
   };
 }
 
+function findMissingFapshiVar(): string | null {
+  if (!process.env.FAPSHI_API_USER?.trim()) return "FAPSHI_API_USER";
+  if (!process.env.FAPSHI_API_KEY?.trim()) return "FAPSHI_API_KEY";
+  if (!process.env.FAPSHI_BOUTIQUE_ID?.trim()) return "FAPSHI_BOUTIQUE_ID";
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
-    const config = getFapshiServerConfig();
-    if (!config.apiUser || !config.apiKey) {
+    const missingVar = findMissingFapshiVar();
+    if (missingVar) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
           fapshiStatus: "FAILED",
-          error:
-            "Configuration Fapshi manquante côté serveur (FAPSHI_API_USER / FAPSHI_API_KEY).",
+          error: `Variable manquante : ${missingVar}`,
         },
         { status: 500 }
       );
     }
+
+    const config = getFapshiServerConfig();
 
     const body = (await request.json()) as {
       planId?: string;
@@ -88,8 +96,8 @@ export async function POST(request: Request) {
       95
     );
 
-    // Fapshi Direct Pay attend les 9 chiffres locaux (6XXXXXXXX) sans '+' ni espace
-    const phoneForFapshi = parsedPhone.local9;
+    // Formate le téléphone en 237XXXXXXXXX sans '+' et sans espace avant l'envoi
+    const phoneForFapshi = parsedPhone.intl237;
 
     const payload = {
       amount,
@@ -116,23 +124,21 @@ export async function POST(request: Request) {
     });
 
     const fapshiData = await fapshiRes.json().catch(() => ({}));
+    console.log("[FAPSHI DIRECT-PAY FULL RESPONSE]", {
+      baseUrl: config.baseUrl,
+      httpStatus: fapshiRes.status,
+      phoneSent: phoneForFapshi,
+      service,
+      amount,
+      response: fapshiData,
+    });
+
     const transId =
       typeof fapshiData?.transId === "string" ? fapshiData.transId : null;
     const fapshiMsg =
       typeof fapshiData?.message === "string" ? fapshiData.message.trim() : "";
     const fapshiErr =
       typeof fapshiData?.error === "string" ? fapshiData.error.trim() : "";
-
-    console.log("[FAPSHI DIRECT-PAY]", {
-      baseUrl: config.baseUrl,
-      httpStatus: fapshiRes.status,
-      transId,
-      phoneSent: phoneForFapshi,
-      service,
-      amount,
-      message: fapshiMsg,
-      error: fapshiErr,
-    });
 
     const failedAtInit = !fapshiRes.ok || !transId;
     const errorReason =
@@ -271,17 +277,19 @@ export async function GET(request: Request) {
       );
     }
 
-    const config = getFapshiServerConfig();
-    if (!config.apiUser || !config.apiKey) {
+    const missingVar = findMissingFapshiVar();
+    if (missingVar) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
-          error: "Configuration Fapshi manquante côté serveur.",
+          error: `Variable manquante : ${missingVar}`,
         },
         { status: 500 }
       );
     }
+
+    const config = getFapshiServerConfig();
 
     const statusRes = await fetch(
       `${config.baseUrl}/payment-status/${encodeURIComponent(transId)}`,
@@ -296,6 +304,12 @@ export async function GET(request: Request) {
     );
 
     const statusData = await statusRes.json().catch(() => ({}));
+    console.log("[FAPSHI PAYMENT-STATUS FULL RESPONSE]", {
+      transId,
+      httpStatus: statusRes.status,
+      response: statusData,
+    });
+
     const rawStatus = String(statusData?.status || "").toUpperCase();
     const fapshiStatusMsg =
       typeof statusData?.message === "string" ? statusData.message.trim() : "";
@@ -304,14 +318,6 @@ export async function GET(request: Request) {
     const paidAmount =
       Math.round(Number(statusData?.amount || amountParam || 0)) ||
       resolvePlanAmount(planId);
-
-    console.log("[FAPSHI PAYMENT-STATUS]", {
-      transId,
-      httpStatus: statusRes.status,
-      status: rawStatus,
-      message: fapshiStatusMsg,
-      error: fapshiStatusErr,
-    });
 
     if (rawStatus === "SUCCESSFUL") {
       if (user) {
