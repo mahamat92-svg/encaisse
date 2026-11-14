@@ -1,11 +1,21 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "@/components/AppContext";
 import { formatCFA } from "@/lib/format";
+import {
+  normalizeCameroonPhone,
+  type CameroonOperator,
+} from "@/lib/fapshi";
 
 interface FapshiSubscriptionCheckoutProps {
   onSuccess?: () => void;
+}
+
+function formatCountdown(secondsLeft: number): string {
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
 export function FapshiSubscriptionCheckout({
@@ -13,12 +23,14 @@ export function FapshiSubscriptionCheckout({
 }: FapshiSubscriptionCheckoutProps) {
   const { org, refreshOrgData } = useAppState();
   const [planId, setPlanId] = useState<"pro" | "business">("pro");
-  const [method, setMethod] = useState<"Orange Money" | "MTN MoMo">(
-    "Orange Money"
-  );
-  const [phone, setPhone] = useState("+237 ");
+  const [method, setMethod] = useState<CameroonOperator>("Orange Money");
+  const [manualOverride, setManualOverride] = useState(false);
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const [checkingNow, setCheckingNow] = useState(false);
   const [transId, setTransId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -27,23 +39,36 @@ export function FapshiSubscriptionCheckout({
   >(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollAttemptsRef = useRef(0);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const parsedPhone = useMemo(() => normalizeCameroonPhone(phone), [phone]);
   const amount = planId === "business" ? 15000 : 5000;
+  const hasTypedPhone = phone.trim().length > 0;
+  const isPhoneInvalid = hasTypedPhone && !parsedPhone.valid;
+
+  // Auto-détecte l'opérateur tant que l'utilisateur n'a pas forcé manuellement
+  useEffect(() => {
+    if (!manualOverride && parsedPhone.detectedOperator) {
+      setMethod(parsedPhone.detectedOperator);
+    }
+  }, [parsedPhone.detectedOperator, manualOverride]);
 
   function stopPolling() {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
     setPolling(false);
   }
 
   useEffect(() => {
     return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-      }
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     };
   }, []);
 
@@ -53,6 +78,7 @@ export function FapshiSubscriptionCheckout({
     currentPlanId: "pro" | "business",
     currentAmount: number
   ) {
+    setCheckingNow(true);
     try {
       const params = new URLSearchParams({
         transId: currentTransId,
@@ -66,8 +92,9 @@ export function FapshiSubscriptionCheckout({
       });
       const data = await res.json();
 
-      if (data?.status === "Réussi") {
+      if (data?.status === "Réussi" || data?.fapshiStatus === "SUCCESS") {
         stopPolling();
+        setTimedOut(false);
         setStatusType("success");
         setStatusMessage("Paiement réussi ✅ Merci");
         await refreshOrgData();
@@ -77,25 +104,35 @@ export function FapshiSubscriptionCheckout({
 
       if (data?.fapshiStatus === "FAILED" || data?.fapshiStatus === "EXPIRED") {
         stopPolling();
+        setTimedOut(false);
         setStatusType("error");
         setStatusMessage(
-          data?.message || data?.error || "Paiement échoué, réessaie"
+          data?.message || data?.error || "Fapshi a refusé le paiement."
         );
         onSuccess?.();
         return true;
       }
     } catch {
-      // On continue de vérifier jusqu'au timeout
+      // On continue de vérifier jusqu'à la fin des 120 secondes
+    } finally {
+      setCheckingNow(false);
     }
     return false;
   }
 
   async function handleStartPayment(selectedPlan: "pro" | "business") {
+    if (!parsedPhone.valid) {
+      setStatusType("error");
+      setStatusMessage("Numéro invalide, vérifie ton numéro : ex 640633834");
+      return;
+    }
+
     setPlanId(selectedPlan);
     const chosenAmount = selectedPlan === "business" ? 15000 : 5000;
 
     setStatusMessage(null);
     setStatusType(null);
+    setTimedOut(false);
     stopPolling();
     setLoading(true);
 
@@ -107,8 +144,8 @@ export function FapshiSubscriptionCheckout({
           planId: selectedPlan,
           amount: chosenAmount,
           method,
-          phone,
-          customerName: org.name || "Client InnovTech MHA",
+          phone: parsedPhone.local9,
+          customerName: org.name || "Hadja production",
           orgId: org.id,
         }),
       });
@@ -116,7 +153,9 @@ export function FapshiSubscriptionCheckout({
       const data = await res.json();
       if (!res.ok || !data?.ok || !data?.transId) {
         setStatusType("error");
-        setStatusMessage(data?.error || "Paiement échoué, réessaie");
+        setStatusMessage(
+          data?.error || data?.message || "Fapshi a refusé la demande."
+        );
         onSuccess?.();
         return;
       }
@@ -127,30 +166,35 @@ export function FapshiSubscriptionCheckout({
       setPaymentId(newPaymentId);
       setStatusType("info");
       setStatusMessage(
-        "Demande envoyée sur votre téléphone ! Validez avec votre code PIN..."
+        `On a envoyé une demande à ${parsedPhone.display}. Regarde ton téléphone, tape ton code PIN ${method}.`
       );
 
-      // Polling automatique Fapshi payment-status
-      pollAttemptsRef.current = 0;
+      // Compte à rebours 120 secondes + polling toutes les 10 secondes
+      setSecondsLeft(120);
       setPolling(true);
+
+      countdownTimerRef.current = setInterval(() => {
+        setSecondsLeft((prev) => {
+          if (prev <= 1) {
+            stopPolling();
+            setTimedOut(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
       pollTimerRef.current = setInterval(async () => {
-        pollAttemptsRef.current += 1;
-        const done = await checkPaymentStatus(
+        await checkPaymentStatus(
           newTransId,
           newPaymentId,
           selectedPlan,
           chosenAmount
         );
-        if (!done && pollAttemptsRef.current >= 20) {
-          stopPolling();
-          setStatusType("error");
-          setStatusMessage("Paiement échoué, réessaie");
-          onSuccess?.();
-        }
-      }, 3000);
+      }, 10000);
     } catch {
       setStatusType("error");
-      setStatusMessage("Paiement échoué, réessaie");
+      setStatusMessage("Erreur réseau lors de l'appel à Fapshi. Réessaie.");
     } finally {
       setLoading(false);
     }
@@ -158,67 +202,77 @@ export function FapshiSubscriptionCheckout({
 
   return (
     <div className="bg-white rounded-2xl border-2 border-[#166534] p-5 sm:p-6 shadow-sm space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#166534] text-[11px] font-extrabold uppercase tracking-wider">
-            ⚡ Paiement Instantané Fapshi Direct Pay
-          </span>
-          <h2 className="text-lg sm:text-xl font-extrabold text-[#0B1F3A] mt-2">
-            Active ton abonnement en 1 clic sur ton téléphone
-          </h2>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Choisis Orange Money ou MTN MoMo, entre ton numéro et valide le message PIN sur ton téléphone.
-          </p>
-        </div>
+      <div>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#166534] text-[11px] font-extrabold uppercase tracking-wider">
+          ⚡ Paiement Instantané Fapshi Mobile Money
+        </span>
+        <h2 className="text-lg sm:text-xl font-extrabold text-[#0B1F3A] mt-2">
+          Active ton abonnement en 1 clic sur ton téléphone
+        </h2>
+        <p className="text-xs text-slate-600 mt-0.5">
+          Entre ton numéro camerounais (9 chiffres), choisis Orange Money ou MTN MoMo et valide le code PIN sur ton téléphone.
+        </p>
       </div>
 
-      {/* Choix opérateur + numéro */}
+      {/* Numéro + Select Opérateur */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="block text-xs font-extrabold text-slate-700">
-            1. Choisis ton opérateur Mobile Money
-          </label>
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => setMethod("Orange Money")}
-              className={`py-3 px-3 rounded-xl border-2 text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
-                method === "Orange Money"
-                  ? "border-orange-500 bg-orange-50 text-orange-800"
-                  : "border-slate-200 bg-[#F8FAFC] text-slate-700 hover:border-slate-300"
-              }`}
-            >
-              🟠 Orange Money
-            </button>
-            <button
-              type="button"
-              onClick={() => setMethod("MTN MoMo")}
-              className={`py-3 px-3 rounded-xl border-2 text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
-                method === "MTN MoMo"
-                  ? "border-amber-500 bg-amber-50 text-amber-900"
-                  : "border-slate-200 bg-[#F8FAFC] text-slate-700 hover:border-slate-300"
-              }`}
-            >
-              🟡 MTN MoMo
-            </button>
-          </div>
-        </div>
-
         <div className="space-y-2">
           <label
             htmlFor="fapshi-phone"
             className="block text-xs font-extrabold text-slate-700"
           >
-            2. Ton numéro Mobile Money
+            1. Ton numéro Mobile Money (Cameroun)
           </label>
           <input
             id="fapshi-phone"
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="ex: +237 6XX XX XX XX"
-            className="w-full rounded-xl border border-slate-300 bg-[#F8FAFC] px-4 py-3 text-sm font-bold text-[#0B1F3A] focus:outline-none focus:border-[#166534]"
+            placeholder="ex: 640633834 ou +237 640 63 38 34"
+            className={`w-full rounded-xl border px-4 py-3 text-sm font-bold text-[#0B1F3A] bg-[#F8FAFC] focus:outline-none ${
+              isPhoneInvalid
+                ? "border-red-500 focus:border-red-600"
+                : parsedPhone.valid
+                  ? "border-emerald-500 focus:border-[#166534]"
+                  : "border-slate-300 focus:border-[#166534]"
+            }`}
           />
+          {isPhoneInvalid && (
+            <p className="text-xs font-bold text-red-600">
+              Numéro invalide, vérifie ton numéro : ex 640633834
+            </p>
+          )}
+          {parsedPhone.valid && (
+            <p className="text-xs font-extrabold text-[#166534]">
+              ✅ Numéro confirmé : {parsedPhone.display} - {method}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label
+            htmlFor="fapshi-operator"
+            className="block text-xs font-extrabold text-slate-700"
+          >
+            2. Opérateur Mobile Money
+          </label>
+          <select
+            id="fapshi-operator"
+            value={method}
+            onChange={(e) => {
+              setManualOverride(true);
+              setMethod(e.target.value as CameroonOperator);
+            }}
+            className="w-full rounded-xl border border-slate-300 bg-[#F8FAFC] px-4 py-3 text-sm font-bold text-[#0B1F3A] focus:outline-none focus:border-[#166534]"
+          >
+            <option value="Orange Money">🟠 Orange Money</option>
+            <option value="MTN MoMo">🟡 MTN MoMo</option>
+          </select>
+          {parsedPhone.valid && parsedPhone.detectedOperator && (
+            <p className="text-[11px] text-slate-500">
+              Opérateur détecté : <strong>{parsedPhone.detectedOperator}</strong> (modifiable ci-dessus)
+            </p>
+          )}
         </div>
       </div>
 
@@ -226,31 +280,31 @@ export function FapshiSubscriptionCheckout({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
         <button
           type="button"
-          disabled={loading || polling}
+          disabled={!parsedPhone.valid || loading || polling}
           onClick={() => handleStartPayment("pro")}
-          className="w-full py-3.5 px-4 rounded-xl bg-[#166534] hover:bg-[#14532D] disabled:opacity-60 text-white font-extrabold text-sm shadow-sm transition-colors cursor-pointer"
+          className="w-full py-3.5 px-4 rounded-xl bg-[#166534] hover:bg-[#14532D] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-sm shadow-sm transition-colors cursor-pointer"
         >
           {loading && planId === "pro"
-            ? "Envoi sur ton téléphone..."
+            ? "Envoi à Fapshi..."
             : "Payer abonnement Pro 5 000 FCFA"}
         </button>
 
         <button
           type="button"
-          disabled={loading || polling}
+          disabled={!parsedPhone.valid || loading || polling}
           onClick={() => handleStartPayment("business")}
-          className="w-full py-3.5 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] disabled:opacity-60 text-white font-extrabold text-sm shadow-sm transition-colors cursor-pointer"
+          className="w-full py-3.5 px-4 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-sm shadow-sm transition-colors cursor-pointer"
         >
           {loading && planId === "business"
-            ? "Envoi sur ton téléphone..."
+            ? "Envoi à Fapshi..."
             : "Payer abonnement Business 15 000 FCFA"}
         </button>
       </div>
 
-      {/* Statut en direct */}
+      {/* Statut en direct + Compte à rebours + Vérifier maintenant */}
       {statusMessage && (
         <div
-          className={`p-4 rounded-xl border text-xs sm:text-sm font-extrabold flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          className={`p-4 rounded-xl border text-xs sm:text-sm font-extrabold space-y-3 ${
             statusType === "success"
               ? "bg-emerald-50 border-emerald-300 text-emerald-800"
               : statusType === "error"
@@ -258,23 +312,49 @@ export function FapshiSubscriptionCheckout({
                 : "bg-amber-50 border-amber-300 text-amber-900"
           }`}
         >
-          <span>
-            {statusMessage}
-            {statusType === "success"
-              ? ` (Abonnement Payé • Solde Mobile Money + ${formatCFA(amount)})`
-              : ""}
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p>
+                {statusMessage}
+                {statusType === "success"
+                  ? ` (Abonnement Payé • Solde Mobile Money + ${formatCFA(amount)})`
+                  : ""}
+              </p>
+              {polling && secondsLeft > 0 && (
+                <p className="text-xs font-bold text-amber-800 mt-1">
+                  ⏳ En attente de validation... {formatCountdown(secondsLeft)}
+                </p>
+              )}
+            </div>
 
-          {polling && transId && (
-            <button
-              type="button"
-              onClick={() =>
-                checkPaymentStatus(transId, paymentId, planId, amount)
-              }
-              className="px-3 py-1.5 rounded-lg bg-white border border-amber-400 text-amber-900 text-xs font-extrabold hover:bg-amber-100 shrink-0 cursor-pointer"
-            >
-              Vérifier maintenant
-            </button>
+            {transId && statusType !== "success" && (
+              <button
+                type="button"
+                disabled={checkingNow}
+                onClick={() =>
+                  checkPaymentStatus(transId, paymentId, planId, amount)
+                }
+                className="px-3.5 py-2 rounded-lg bg-white border border-amber-400 text-amber-900 text-xs font-extrabold hover:bg-amber-100 shrink-0 cursor-pointer disabled:opacity-60"
+              >
+                {checkingNow ? "Vérification..." : "Vérifier maintenant"}
+              </button>
+            )}
+          </div>
+
+          {timedOut && statusType !== "success" && (
+            <div className="pt-2 border-t border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-xs font-bold text-amber-900">
+                Tu n&apos;as rien reçu ? 1) Vérifie que ton numéro est bien Orange/MTN 2) Vérifie ton réseau 3) Clique sur Renvoyer la demande
+              </p>
+              <button
+                type="button"
+                disabled={loading || !parsedPhone.valid}
+                onClick={() => handleStartPayment(planId)}
+                className="px-3.5 py-2 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white text-xs font-extrabold shrink-0 cursor-pointer"
+              >
+                Renvoyer la demande PIN
+              </button>
+            </div>
           )}
         </div>
       )}

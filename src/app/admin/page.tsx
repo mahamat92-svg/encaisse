@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { useAppState } from "@/components/AppContext";
@@ -11,6 +11,22 @@ import {
   getBusinessTypeLabels,
 } from "@/lib/format";
 import { WhatsAppShareButton } from "@/components/WhatsAppButton";
+
+interface AdminFapshiRow {
+  id: string;
+  nom: string;
+  phone: string;
+  phone_sent?: string | null;
+  operator?: string | null;
+  montant: number;
+  methode: string;
+  plan_id: string;
+  trans_id?: string | null;
+  statut: string;
+  fapshi_status?: string | null;
+  fapshi_error?: string | null;
+  created_at: string;
+}
 
 export default function AdminDashboardPage() {
   const {
@@ -37,6 +53,75 @@ export default function AdminDashboardPage() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Debug & Vérification Fapshi
+  const [fapshiRows, setFapshiRows] = useState<AdminFapshiRow[]>([]);
+  const [fapshiTestResult, setFapshiTestResult] = useState<string | null>(null);
+  const [testingFapshi, setTestingFapshi] = useState(false);
+  const [verifyingTransId, setVerifyingTransId] = useState<string | null>(null);
+
+  const loadFapshiAdminRows = useCallback(async () => {
+    try {
+      const res = await fetch("/api/fapshi/payer?history=1&all=1", {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (Array.isArray(data?.payments)) {
+        setFapshiRows(data.payments as AdminFapshiRow[]);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFapshiAdminRows();
+  }, [loadFapshiAdminRows]);
+
+  async function handleTestFapshiConnection() {
+    setTestingFapshi(true);
+    setFapshiTestResult(null);
+    try {
+      const res = await fetch("/api/fapshi/test", { cache: "no-store" });
+      const data = await res.json();
+      setFapshiTestResult(
+        `${data?.ok ? "✅" : "❌"} Mode: ${data?.mode || "?"} (${data?.baseUrl || ""}) — ${data?.message || ""}`
+      );
+    } catch {
+      setFapshiTestResult("❌ Impossible de joindre /api/fapshi/test");
+    } finally {
+      setTestingFapshi(false);
+    }
+  }
+
+  async function handleVerifyFapshiRow(row: AdminFapshiRow) {
+    if (!row.trans_id) return;
+    setVerifyingTransId(row.trans_id);
+    setFeedback(null);
+    setErrorMsg(null);
+    try {
+      const params = new URLSearchParams({
+        transId: row.trans_id,
+        paymentId: row.id,
+        planId: row.plan_id === "business" ? "business" : "pro",
+        amount: String(row.montant),
+      });
+      const res = await fetch(`/api/fapshi/payer?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (data?.status === "Réussi") {
+        setFeedback(`✅ Paiement ${row.trans_id} confirmé Réussi chez Fapshi !`);
+      } else {
+        setErrorMsg(
+          `Statut Fapshi (${row.trans_id}) : ${data?.message || data?.fapshiStatus || "PENDING"}`
+        );
+      }
+      await loadFapshiAdminRows();
+    } finally {
+      setVerifyingTransId(null);
+    }
+  }
 
   async function handleReviewPayment(
     submissionId: string,
@@ -350,6 +435,109 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* DEBUG & VÉRIFICATION FAPSHI (Super-Admin) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-extrabold text-sm sm:text-base text-[#0B1F3A]">
+                ⚡ Debug & Vérification Paiements Fapshi
+              </h2>
+              <p className="text-xs text-slate-500">
+                Numéro envoyé, opérateur, transId Fapshi, statut Fapshi (PENDING / SUCCESS / FAILED) et erreur exacte.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={testingFapshi}
+              onClick={handleTestFapshiConnection}
+              className="px-4 py-2 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold disabled:opacity-50 cursor-pointer"
+            >
+              {testingFapshi ? "Test en cours..." : "Tester connexion Fapshi"}
+            </button>
+          </div>
+
+          {fapshiTestResult && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-[#0B1F3A]">
+              {fapshiTestResult}
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-[#F8FAFC] text-slate-600 font-extrabold">
+                  <th className="py-2.5 px-3">Numéro envoyé</th>
+                  <th className="py-2.5 px-3">Opérateur</th>
+                  <th className="py-2.5 px-3">transId Fapshi</th>
+                  <th className="py-2.5 px-3">Statut Fapshi</th>
+                  <th className="py-2.5 px-3">Erreur Fapshi</th>
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {fapshiRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-4 px-3 text-center text-slate-500">
+                      Aucune transaction Fapshi enregistrée.
+                    </td>
+                  </tr>
+                ) : (
+                  fapshiRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/70">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#0B1F3A]">
+                        {row.phone_sent || row.phone}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-slate-700">
+                        {row.operator ? row.operator.toUpperCase() : row.methode}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-700">
+                        {row.trans_id || "—"}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full font-extrabold text-[11px] ${
+                            row.fapshi_status === "SUCCESS" ||
+                            row.statut === "Réussi"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : row.fapshi_status === "FAILED"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {row.fapshi_status || "PENDING"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-red-600 max-w-[220px] truncate">
+                        {row.fapshi_error || "—"}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
+                        {formatDate(row.created_at)}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {row.trans_id ? (
+                          <button
+                            type="button"
+                            disabled={verifyingTransId === row.trans_id}
+                            onClick={() => handleVerifyFapshiRow(row)}
+                            className="px-3 py-1.5 rounded-lg bg-[#166534] hover:bg-[#14532D] text-white text-[11px] font-extrabold disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                          >
+                            {verifyingTransId === row.trans_id
+                              ? "..."
+                              : "Vérifier chez Fapshi"}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Actions rapides Admin : Créer Facture + Créer Produit */}

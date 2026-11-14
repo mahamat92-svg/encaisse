@@ -1,66 +1,43 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { normalizeCameroonPhone } from "@/lib/fapshi";
+import {
+  activatePaidSubscriptionAndCreditBalance,
+  getFapshiServerConfig,
+  resolvePlanAmount,
+} from "@/lib/fapshi-server";
 
-function getFapshiConfig() {
-  const nomCommercial = (process.env.FAPSHI_NOM_COMMERCIAL || "").trim();
-  const apiUser = (process.env.FAPSHI_API_USER || "").trim();
-  const apiKey = (process.env.FAPSHI_API_KEY || "").trim();
-  const boutiqueId = (process.env.FAPSHI_BOUTIQUE_ID || "").trim();
-  const boutiqueUrl = (process.env.FAPSHI_BOUTIQUE_URL || "").trim();
-  const isSandbox =
-    process.env.FAPSHI_ENV === "sandbox" || apiKey.startsWith("FAK_TEST_");
-  const baseUrl = isSandbox
-    ? "https://sandbox.fapshi.com"
-    : "https://live.fapshi.com";
-
-  return {
-    nomCommercial,
-    apiUser,
-    apiKey,
-    boutiqueId,
-    boutiqueUrl,
-    baseUrl,
-  };
-}
-
-function normalizeCameroonPhone(rawPhone: string): string {
-  const digits = rawPhone.replace(/\D/g, "");
-  if (digits.startsWith("237") && digits.length >= 12) {
-    return digits.slice(3);
-  }
-  return digits;
-}
-
-function resolvePlanAmount(planId: string, rawAmount?: number): number {
-  if (planId === "pro") return 5000;
-  if (planId === "business") return 15000;
-  const parsed = Math.round(Number(rawAmount ?? 0));
-  return parsed >= 100 ? parsed : 5000;
-}
-
-function resolveMedium(method: string): {
+function resolveOperator(method: string): {
   medium: "orange money" | "mobile money";
+  service: "orange" | "mtn";
   label: "Orange Money" | "MTN MoMo";
 } {
   const lower = method.toLowerCase();
   if (lower.includes("orange")) {
-    return { medium: "orange money", label: "Orange Money" };
+    return {
+      medium: "orange money",
+      service: "orange",
+      label: "Orange Money",
+    };
   }
-  return { medium: "mobile money", label: "MTN MoMo" };
+  return {
+    medium: "mobile money",
+    service: "mtn",
+    label: "MTN MoMo",
+  };
 }
 
 export async function POST(request: Request) {
   try {
-    const { nomCommercial, apiUser, apiKey, boutiqueId, baseUrl } =
-      getFapshiConfig();
-
-    if (!apiUser || !apiKey) {
+    const config = getFapshiServerConfig();
+    if (!config.apiUser || !config.apiKey) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
+          fapshiStatus: "FAILED",
           error:
-            "Configuration Fapshi incomplète côté serveur (FAPSHI_API_KEY manquant dans .env.local / Vercel).",
+            "Configuration Fapshi manquante côté serveur (FAPSHI_API_USER / FAPSHI_API_KEY).",
         },
         { status: 500 }
       );
@@ -77,18 +54,18 @@ export async function POST(request: Request) {
 
     const planId = body.planId === "business" ? "business" : "pro";
     const amount = resolvePlanAmount(planId, body.amount);
-    const { medium, label: methodLabel } = resolveMedium(body.method || "");
-    const rawPhone = (body.phone || "").trim();
-    const normalizedPhone = normalizeCameroonPhone(rawPhone);
-    const customerName =
-      (body.customerName || "").trim() || nomCommercial || "Client InnovTech";
+    const { medium, service, label: methodLabel } = resolveOperator(
+      body.method || ""
+    );
 
-    if (normalizedPhone.length < 9) {
+    const parsedPhone = normalizeCameroonPhone(body.phone || "");
+    if (!parsedPhone.valid) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
-          error: "Numéro Mobile Money invalide (ex: +237 6XX XX XX XX).",
+          fapshiStatus: "FAILED",
+          error: "Numéro invalide, vérifie ton numéro : ex 640633834",
         },
         { status: 400 }
       );
@@ -99,7 +76,10 @@ export async function POST(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const cleanBoutiquePrefix = (boutiqueId || "MHA").replace(
+    const customerName =
+      (body.customerName || "").trim() || config.nomCommercial;
+
+    const cleanBoutiquePrefix = (config.boutiqueId || "MHA").replace(
       /[^a-zA-Z0-9_-]/g,
       ""
     );
@@ -108,23 +88,29 @@ export async function POST(request: Request) {
       95
     );
 
+    // Fapshi Direct Pay attend les 9 chiffres locaux (6XXXXXXXX) sans '+' ni espace
+    const phoneForFapshi = parsedPhone.local9;
+
     const payload = {
       amount,
-      phone: normalizedPhone,
+      phone: phoneForFapshi,
       medium,
+      service,
       name: customerName,
-      email: user?.email || undefined,
+      email: user?.email || "client@innovtech-mha.com",
       userId: user?.id || cleanBoutiquePrefix,
       externalId,
-      message: `Abonnement ${planId === "business" ? "Business" : "Pro"} - ${nomCommercial || "InnovTech MHA Infinity"}`,
+      redirectUrl: `${config.appUrl}/app/abonnement`,
+      webhook: `${config.appUrl}/api/fapshi/webhook`,
+      message: `Abonnement ${planId === "business" ? "Business" : "Pro"} - ${config.nomCommercial}`,
     };
 
-    const fapshiRes = await fetch(`${baseUrl}/direct-pay`, {
+    const fapshiRes = await fetch(`${config.baseUrl}/direct-pay`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apiuser: apiUser,
-        apikey: apiKey,
+        apiuser: config.apiUser,
+        apikey: config.apiKey,
       },
       body: JSON.stringify(payload),
     });
@@ -134,8 +120,24 @@ export async function POST(request: Request) {
       typeof fapshiData?.transId === "string" ? fapshiData.transId : null;
     const fapshiMsg =
       typeof fapshiData?.message === "string" ? fapshiData.message.trim() : "";
+    const fapshiErr =
+      typeof fapshiData?.error === "string" ? fapshiData.error.trim() : "";
 
-    // Enregistrer dans l'historique fapshi_payments avec statut initial "En attente"
+    console.log("[FAPSHI DIRECT-PAY]", {
+      baseUrl: config.baseUrl,
+      httpStatus: fapshiRes.status,
+      transId,
+      phoneSent: phoneForFapshi,
+      service,
+      amount,
+      message: fapshiMsg,
+      error: fapshiErr,
+    });
+
+    const failedAtInit = !fapshiRes.ok || !transId;
+    const errorReason =
+      fapshiMsg || fapshiErr || (failedAtInit ? `HTTP ${fapshiRes.status}` : "");
+
     let paymentId: string | null = null;
     if (user) {
       const { data: inserted } = await supabase
@@ -144,13 +146,17 @@ export async function POST(request: Request) {
           user_id: user.id,
           org_id: body.orgId || null,
           nom: customerName,
-          phone: rawPhone || normalizedPhone,
+          phone: parsedPhone.display,
+          phone_sent: phoneForFapshi,
+          operator: service,
           montant: amount,
           methode: methodLabel,
           plan_id: planId,
           trans_id: transId,
           external_id: externalId,
           statut: "En attente",
+          fapshi_status: failedAtInit ? "FAILED" : "PENDING",
+          fapshi_error: failedAtInit ? errorReason : null,
         })
         .select("id")
         .maybeSingle();
@@ -160,15 +166,16 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!fapshiRes.ok || !transId) {
+    if (failedAtInit) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
+          fapshiStatus: "FAILED",
           paymentId,
-          error: fapshiMsg
-            ? `Erreur Fapshi : ${fapshiMsg}`
-            : "Paiement échoué, réessaie",
+          error: errorReason
+            ? `Fapshi a refusé : ${errorReason}`
+            : "Fapshi a refusé la demande de paiement.",
         },
         { status: 400 }
       );
@@ -179,21 +186,24 @@ export async function POST(request: Request) {
       transId,
       paymentId,
       amount,
+      phoneDisplay: parsedPhone.display,
+      phoneSent: phoneForFapshi,
       methode: methodLabel,
       status: "En attente",
-      message:
-        fapshiMsg ||
-        "Demande envoyée sur votre téléphone. Validez avec votre code PIN.",
+      fapshiStatus: "PENDING",
+      message: `On a envoyé une demande à ${parsedPhone.display}. Regarde ton téléphone, tape ton code PIN ${methodLabel}.`,
     });
   } catch (err) {
+    console.error("[FAPSHI DIRECT-PAY ERROR]", err);
     return NextResponse.json(
       {
         ok: false,
         status: "En attente",
+        fapshiStatus: "FAILED",
         error:
           err instanceof Error && err.message
-            ? `Erreur Fapshi : ${err.message}`
-            : "Paiement échoué, réessaie",
+            ? `Fapshi a refusé : ${err.message}`
+            : "Erreur serveur lors de l'appel Fapshi.",
       },
       { status: 500 }
     );
@@ -204,9 +214,11 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const wantHistory = url.searchParams.get("history") === "1";
+    const wantAllAdmin = url.searchParams.get("all") === "1";
     const transId = (url.searchParams.get("transId") || "").trim();
     const paymentId = (url.searchParams.get("paymentId") || "").trim();
-    const planId = url.searchParams.get("planId") === "business" ? "business" : "pro";
+    const planId =
+      url.searchParams.get("planId") === "business" ? "business" : "pro";
     const amountParam = Math.round(Number(url.searchParams.get("amount") || 0));
 
     const supabase = await createServerSupabase();
@@ -218,9 +230,30 @@ export async function GET(request: Request) {
       if (!user) {
         return NextResponse.json({ ok: true, payments: [] });
       }
+
+      if (wantAllAdmin) {
+        const { data: isAdmin } = await supabase.rpc("is_platform_admin");
+        if (isAdmin) {
+          const { data, error } = await supabase
+            .from("fapshi_payments")
+            .select(
+              "id, user_id, nom, phone, phone_sent, operator, montant, methode, plan_id, trans_id, statut, fapshi_status, fapshi_error, created_at"
+            )
+            .order("created_at", { ascending: false })
+            .limit(50);
+
+          return NextResponse.json({
+            ok: true,
+            payments: error ? [] : data || [],
+          });
+        }
+      }
+
       const { data, error } = await supabase
         .from("fapshi_payments")
-        .select("id, nom, phone, montant, methode, plan_id, trans_id, statut, created_at")
+        .select(
+          "id, nom, phone, phone_sent, operator, montant, methode, plan_id, trans_id, statut, fapshi_status, fapshi_error, created_at"
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -238,25 +271,25 @@ export async function GET(request: Request) {
       );
     }
 
-    const { apiUser, apiKey, baseUrl } = getFapshiConfig();
-    if (!apiUser || !apiKey) {
+    const config = getFapshiServerConfig();
+    if (!config.apiUser || !config.apiKey) {
       return NextResponse.json(
         {
           ok: false,
           status: "En attente",
-          error: "Configuration Fapshi incomplète côté serveur.",
+          error: "Configuration Fapshi manquante côté serveur.",
         },
         { status: 500 }
       );
     }
 
     const statusRes = await fetch(
-      `${baseUrl}/payment-status/${encodeURIComponent(transId)}`,
+      `${config.baseUrl}/payment-status/${encodeURIComponent(transId)}`,
       {
         method: "GET",
         headers: {
-          apiuser: apiUser,
-          apikey: apiKey,
+          apiuser: config.apiUser,
+          apikey: config.apiKey,
         },
         cache: "no-store",
       }
@@ -266,101 +299,87 @@ export async function GET(request: Request) {
     const rawStatus = String(statusData?.status || "").toUpperCase();
     const fapshiStatusMsg =
       typeof statusData?.message === "string" ? statusData.message.trim() : "";
+    const fapshiStatusErr =
+      typeof statusData?.error === "string" ? statusData.error.trim() : "";
     const paidAmount =
       Math.round(Number(statusData?.amount || amountParam || 0)) ||
       resolvePlanAmount(planId);
 
+    console.log("[FAPSHI PAYMENT-STATUS]", {
+      transId,
+      httpStatus: statusRes.status,
+      status: rawStatus,
+      message: fapshiStatusMsg,
+      error: fapshiStatusErr,
+    });
+
     if (rawStatus === "SUCCESSFUL") {
       if (user) {
-        const updateQuery = paymentId
-          ? supabase
-              .from("fapshi_payments")
-              .update({ statut: "Réussi" })
-              .eq("id", paymentId)
-              .eq("user_id", user.id)
-          : supabase
-              .from("fapshi_payments")
-              .update({ statut: "Réussi" })
-              .eq("trans_id", transId)
-              .eq("user_id", user.id);
-
-        await updateQuery;
-
-        const expiresAt = new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000
-        ).toISOString();
-
-        await supabase.from("subscriptions").upsert(
-          {
-            user_id: user.id,
-            plan: planId,
-            status: "active",
-            expires_at: expiresAt,
-          },
-          { onConflict: "user_id" }
-        );
-
-        const { data: firstClient } = await supabase
-          .from("clients")
-          .select("id, mobile_money_balance")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (firstClient?.id) {
-          const nextBalance =
-            Number(firstClient.mobile_money_balance || 0) + paidAmount;
-          await supabase
-            .from("clients")
-            .update({ mobile_money_balance: nextBalance })
-            .eq("id", firstClient.id);
-        }
+        await activatePaidSubscriptionAndCreditBalance({
+          supabase,
+          userId: user.id,
+          planId,
+          paidAmount,
+          transId,
+          paymentId: paymentId || null,
+        });
       }
 
       return NextResponse.json({
         ok: true,
         status: "Réussi",
-        fapshiStatus: rawStatus,
+        fapshiStatus: "SUCCESS",
         amount: paidAmount,
         message: "Paiement réussi ✅ Merci",
       });
     }
 
     if (rawStatus === "FAILED" || rawStatus === "EXPIRED") {
+      const errDetail = fapshiStatusMsg || fapshiStatusErr || rawStatus;
+      if (user) {
+        await supabase
+          .from("fapshi_payments")
+          .update({
+            fapshi_status: "FAILED",
+            fapshi_error: errDetail,
+          })
+          .eq("trans_id", transId);
+      }
+
       return NextResponse.json({
         ok: false,
         status: "En attente",
-        fapshiStatus: rawStatus,
-        message: fapshiStatusMsg
-          ? `Erreur Fapshi (${rawStatus}) : ${fapshiStatusMsg}`
-          : `Paiement échoué (${rawStatus}), réessaie`,
+        fapshiStatus: "FAILED",
+        message: `Fapshi a refusé : ${errDetail}`,
       });
     }
 
-    if (!statusRes.ok && fapshiStatusMsg) {
+    if (!statusRes.ok && (fapshiStatusMsg || fapshiStatusErr)) {
       return NextResponse.json({
         ok: false,
         status: "En attente",
-        message: `Erreur Fapshi : ${fapshiStatusMsg}`,
+        fapshiStatus: "PENDING",
+        message: `Fapshi a refusé : ${fapshiStatusMsg || fapshiStatusErr}`,
       });
     }
 
     return NextResponse.json({
       ok: true,
       status: "En attente",
-      fapshiStatus: rawStatus || "PENDING",
+      fapshiStatus: "PENDING",
       message: "En attente de validation sur votre téléphone...",
     });
   } catch (err) {
+    console.error("[FAPSHI PAYMENT-STATUS ERROR]", err);
     return NextResponse.json(
       {
         ok: false,
         status: "En attente",
+        fapshiStatus: "FAILED",
         message:
           err instanceof Error && err.message
-            ? `Erreur Fapshi : ${err.message}`
-            : "Paiement échoué, réessaie",
+            ? `Fapshi a refusé : ${err.message}`
+            : "Erreur lors de la vérification Fapshi.",
       },
       { status: 500 }
     );
