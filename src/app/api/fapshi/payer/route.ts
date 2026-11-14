@@ -7,10 +7,11 @@ function getFapshiConfig() {
   const apiKey = (process.env.FAPSHI_API_KEY || "").trim();
   const boutiqueId = (process.env.FAPSHI_BOUTIQUE_ID || "").trim();
   const boutiqueUrl = (process.env.FAPSHI_BOUTIQUE_URL || "").trim();
-  const baseUrl =
-    process.env.FAPSHI_ENV === "sandbox"
-      ? "https://sandbox.fapshi.com"
-      : "https://live.fapshi.com";
+  const isSandbox =
+    process.env.FAPSHI_ENV === "sandbox" || apiKey.startsWith("FAK_TEST_");
+  const baseUrl = isSandbox
+    ? "https://sandbox.fapshi.com"
+    : "https://live.fapshi.com";
 
   return {
     nomCommercial,
