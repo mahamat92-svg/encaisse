@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAppState } from "@/components/AppContext";
 import {
@@ -12,6 +12,15 @@ import {
 import { buildReminderMessage } from "@/lib/ai-parser";
 import { WhatsAppIcon, WhatsAppShareButton } from "@/components/WhatsAppButton";
 import { RevenueBushChart } from "@/components/RevenueBushChart";
+
+interface FapshiPaymentRow {
+  id: string;
+  nom: string;
+  montant: number;
+  methode: string;
+  statut: string;
+  created_at: string;
+}
 
 interface CreatedWhatsAppSale {
   clientName: string;
@@ -41,6 +50,22 @@ export default function DashboardPage() {
     "recharge" | "withdraw" | null
   >(null);
   const [momoAmountInput, setMomoAmountInput] = useState<string>("");
+  const [fapshiPayments, setFapshiPayments] = useState<FapshiPaymentRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/fapshi/payer?history=1", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && Array.isArray(data?.payments)) {
+          setFapshiPayments(data.payments as FapshiPaymentRow[]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [org.subscriptionStatus]);
 
   const clientsMomoSum = org.clients.reduce(
     (s, c) => s + Number(c.mobileMoneyBalance ?? 0),
@@ -713,6 +738,75 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Historique Paiements Fapshi */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="font-extrabold text-base text-[#0B1F3A]">
+              ⚡ Historique Paiements Fapshi
+            </h2>
+            <p className="text-xs text-slate-500">
+              Suivi des paiements Mobile Money (Orange Money / MTN MoMo) via Fapshi Direct Pay.
+            </p>
+          </div>
+          <Link
+            href="/app/abonnement"
+            className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-extrabold"
+          >
+            + Payer via Fapshi
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-[#F8FAFC] text-slate-600 font-extrabold">
+                <th className="py-2.5 px-3">Nom</th>
+                <th className="py-2.5 px-3">Montant</th>
+                <th className="py-2.5 px-3">Méthode</th>
+                <th className="py-2.5 px-3">Statut</th>
+                <th className="py-2.5 px-3">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {fapshiPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-5 px-3 text-center text-slate-500">
+                    Aucun paiement Fapshi enregistré pour le moment.
+                  </td>
+                </tr>
+              ) : (
+                fapshiPayments.map((fp) => (
+                  <tr key={fp.id} className="hover:bg-slate-50/70">
+                    <td className="py-2.5 px-3 font-bold text-[#0B1F3A]">
+                      {fp.nom}
+                    </td>
+                    <td className="py-2.5 px-3 font-extrabold text-[#166534]">
+                      {formatCFA(fp.montant)}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-700">{fp.methode}</td>
+                    <td className="py-2.5 px-3">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
+                          fp.statut === "Réussi"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {fp.statut}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-500">
+                      {formatDate(fp.created_at)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

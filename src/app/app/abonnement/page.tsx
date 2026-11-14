@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useAppState } from "@/components/AppContext";
+import { FapshiSubscriptionCheckout } from "@/components/FapshiSubscriptionCheckout";
 import { PLANS } from "@/lib/demo-data";
 import {
   formatCFA,
@@ -199,6 +200,9 @@ export default function SubscriptionPage() {
           </div>
         </div>
       </div>
+
+      {/* Paiement instantané Fapshi Direct Pay */}
+      <FapshiSubscriptionCheckout onSuccess={loadSubscriptionState} />
 
       {/* Sélecteur rapide des 6 formules (2 500 à 50 000 FCFA) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
