@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AppProvider } from "@/components/AppContext";
 import { FloatingWhatsAppButton } from "@/components/PublicHeaderFooter";
+import { FloatingIaGuide } from "@/components/FloatingIaGuide";
 
 export const metadata: Metadata = {
   title:
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col antialiased pb-[90px]">
         <AppProvider>
           {children}
+          <FloatingIaGuide />
           <FloatingWhatsAppButton />
         </AppProvider>
       </body>
