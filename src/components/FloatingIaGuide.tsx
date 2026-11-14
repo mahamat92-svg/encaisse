@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useAppState } from "@/components/AppContext";
 
 interface ChatMessage {
@@ -11,9 +10,6 @@ interface ChatMessage {
   service?: string;
   time: string;
 }
-
-const BLOCKED_MSG =
-  "Paye ton abonnement pour parler à l'IA Guide, elle va te montrer tout le SaaS.";
 
 const QUICK_PROMPTS = [
   "Je veux vendre",
@@ -31,7 +27,7 @@ function formatTime(iso?: string): string {
 }
 
 export function FloatingIaGuide() {
-  const { userEmail, org, isAdmin } = useAppState();
+  const { userEmail } = useAppState();
   const [open, setOpen] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [question, setQuestion] = useState("");
@@ -41,7 +37,7 @@ export function FloatingIaGuide() {
     {
       id: "welcome",
       sender: "ia",
-      text: "Bonjour ! Je suis ton IA Guide 🤖. Pose-moi n'importe quelle question en français simple, je te montre où cliquer et quoi faire.",
+      text: "Bonjour ! Je suis ton IA Guide 🤖 (100% gratuite). Pose-moi n'importe quelle question en français simple, je te montre où cliquer et quoi faire.",
       service: "Général",
       time: formatTime(),
     },
@@ -49,7 +45,6 @@ export function FloatingIaGuide() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isLoggedIn = Boolean(userEmail);
-  const isPaid = isLoggedIn && (isAdmin || org.subscriptionStatus === "active");
 
   // Masquer le bouton flottant si un autre champ du site ouvre le clavier mobile
   useEffect(() => {
@@ -83,9 +78,9 @@ export function FloatingIaGuide() {
     };
   }, []);
 
-  // Charger l'historique sauvegardé quand l'utilisateur payé ouvre le chat
+  // Charger l'historique sauvegardé si l'utilisateur est connecté
   useEffect(() => {
-    if (!open || !isLoggedIn || !isPaid || historyLoaded) return;
+    if (!open || !isLoggedIn || historyLoaded) return;
     let active = true;
 
     fetch("/api/ia-guide")
@@ -126,7 +121,7 @@ export function FloatingIaGuide() {
     return () => {
       active = false;
     };
-  }, [open, isLoggedIn, isPaid, historyLoaded]);
+  }, [open, isLoggedIn, historyLoaded]);
 
   // Scroll auto en bas à chaque nouveau message
   useEffect(() => {
@@ -138,26 +133,6 @@ export function FloatingIaGuide() {
   async function sendQuestion(rawText?: string) {
     const text = (rawText ?? question).trim();
     if (!text || sending) return;
-
-    if (!isLoggedIn || !isPaid) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `u-${Date.now()}`,
-          sender: "user",
-          text,
-          time: formatTime(),
-        },
-        {
-          id: `b-${Date.now()}`,
-          sender: "ia",
-          text: BLOCKED_MSG,
-          time: formatTime(),
-        },
-      ]);
-      if (!rawText) setQuestion("");
-      return;
-    }
 
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
@@ -225,7 +200,7 @@ export function FloatingIaGuide() {
         </button>
       )}
 
-      {/* Fenêtre Chat style WhatsApp */}
+      {/* Fenêtre Chat style WhatsApp — 100% gratuite pour tous */}
       {open && (
         <div
           role="dialog"
@@ -244,7 +219,7 @@ export function FloatingIaGuide() {
                 </p>
                 <p className="text-[11px] text-emerald-100 flex items-center gap-1.5">
                   <span className="inline-block w-2 h-2 rounded-full bg-emerald-300" />
-                  <span>Répond en français simple</span>
+                  <span>100% Gratuite • Français simple</span>
                 </p>
               </div>
             </div>
@@ -258,129 +233,91 @@ export function FloatingIaGuide() {
             </button>
           </div>
 
-          {/* Règle d'abonnement Payé */}
-          {!isLoggedIn || !isPaid ? (
-            <div className="p-5 bg-[#F8FAFC] flex flex-col gap-3 text-center">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-2xl mx-auto">
-                🔒
-              </div>
-              <p className="text-sm font-bold text-slate-900 leading-snug">
-                {BLOCKED_MSG}
-              </p>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Offres : Gratuit (7 jours) • <strong>Pro 5 000 FCFA/mois</strong> •{" "}
-                <strong>Business 15 000 FCFA/mois</strong>.
-                <br />
-                Orange Money : <strong>640 633 034</strong> / MTN MoMo :{" "}
-                <strong>651 465 708</strong> (MAHAMAT BOUBA).
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <Link
-                  href={isLoggedIn ? "/app/abonnement" : "/connexion"}
-                  onClick={() => setOpen(false)}
-                  className="flex-1 inline-flex items-center justify-center rounded-xl bg-[#166534] hover:bg-[#14532D] text-white font-semibold text-xs py-2.5 px-3 transition-colors"
+          {/* Zone des messages style WhatsApp */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto bg-[#F8FAFC] p-3.5 space-y-3 min-h-[260px] max-h-[48vh]"
+          >
+            {messages.map((msg) => {
+              const isUser = msg.sender === "user";
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
-                  {isLoggedIn ? "Activer mon abonnement" : "Se connecter / S'inscrire"}
-                </Link>
-                <a
-                  href="https://wa.me/23566268503"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-300 text-slate-800 font-semibold text-xs py-2.5 px-3 hover:bg-slate-50"
-                >
-                  Aide WhatsApp
-                </a>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Zone des messages style WhatsApp */}
-              <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto bg-[#F8FAFC] p-3.5 space-y-3 min-h-[260px] max-h-[48vh]"
-              >
-                {messages.map((msg) => {
-                  const isUser = msg.sender === "user";
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm whitespace-pre-line ${
-                          isUser
-                            ? "bg-[#166534] text-white rounded-br-sm"
-                            : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
-                        }`}
-                      >
-                        {!isUser && msg.service && (
-                          <span className="inline-block mb-1 text-[10px] font-bold uppercase tracking-wide text-[#166534] bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-                            {msg.service}
-                          </span>
-                        )}
-                        <p>{msg.text}</p>
-                        <p
-                          className={`text-[10px] mt-1 text-right ${
-                            isUser ? "text-emerald-100" : "text-slate-400"
-                          }`}
-                        >
-                          {msg.time}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                {sending && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2 text-xs shadow-sm">
-                      L&apos;IA Guide écrit...
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Questions rapides */}
-              <div className="bg-white border-t border-slate-100 px-3 py-2 flex gap-1.5 overflow-x-auto">
-                {QUICK_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    disabled={sending}
-                    onClick={() => sendQuestion(prompt)}
-                    className="shrink-0 text-[11px] font-medium bg-[#F8FAFC] hover:bg-emerald-50 text-[#166534] border border-slate-200 hover:border-emerald-300 rounded-full px-2.5 py-1 transition-colors cursor-pointer"
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm whitespace-pre-line ${
+                      isUser
+                        ? "bg-[#166534] text-white rounded-br-sm"
+                        : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
+                    }`}
                   >
-                    {prompt}
-                  </button>
-                ))}
+                    {!isUser && msg.service && (
+                      <span className="inline-block mb-1 text-[10px] font-bold uppercase tracking-wide text-[#166534] bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                        {msg.service}
+                      </span>
+                    )}
+                    <p>{msg.text}</p>
+                    <p
+                      className={`text-[10px] mt-1 text-right ${
+                        isUser ? "text-emerald-100" : "text-slate-400"
+                      }`}
+                    >
+                      {msg.time}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2 text-xs shadow-sm">
+                  L&apos;IA Guide écrit...
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Zone de saisie */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendQuestion();
-                }}
-                className="bg-white border-t border-slate-200 p-2.5 flex items-center gap-2"
+          {/* Questions rapides */}
+          <div className="bg-white border-t border-slate-100 px-3 py-2 flex gap-1.5 overflow-x-auto">
+            {QUICK_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                disabled={sending}
+                onClick={() => sendQuestion(prompt)}
+                className="shrink-0 text-[11px] font-medium bg-[#F8FAFC] hover:bg-emerald-50 text-[#166534] border border-slate-200 hover:border-emerald-300 rounded-full px-2.5 py-1 transition-colors cursor-pointer"
               >
-                <input
-                  type="text"
-                  data-ia-guide-input="true"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Écris ta question ici..."
-                  disabled={sending}
-                  className="flex-1 rounded-full bg-[#F8FAFC] border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#166534]"
-                />
-                <button
-                  type="submit"
-                  disabled={sending || !question.trim()}
-                  className="rounded-full bg-[#166534] hover:bg-[#14532D] disabled:opacity-50 text-white font-semibold text-xs px-4 py-2.5 transition-colors cursor-pointer shrink-0"
-                >
-                  Envoyer
-                </button>
-              </form>
-            </>
-          )}
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {/* Zone de saisie */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendQuestion();
+            }}
+            className="bg-white border-t border-slate-200 p-2.5 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              data-ia-guide-input="true"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Écris ta question ici..."
+              disabled={sending}
+              className="flex-1 rounded-full bg-[#F8FAFC] border border-slate-300 px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#166534]"
+            />
+            <button
+              type="submit"
+              disabled={sending || !question.trim()}
+              className="rounded-full bg-[#166534] hover:bg-[#14532D] disabled:opacity-50 text-white font-semibold text-xs px-4 py-2.5 transition-colors cursor-pointer shrink-0"
+            >
+              Envoyer
+            </button>
+          </form>
         </div>
       )}
     </div>

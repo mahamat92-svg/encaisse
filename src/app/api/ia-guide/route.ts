@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-const BLOCKED_MSG =
-  "Paye ton abonnement pour parler à l'IA Guide, elle va te montrer tout le SaaS.";
-
-const SYSTEM_PROMPT = `Tu es l'IA Guide amicale de "InnovTech MHA Infinity" (Encaisse), un SaaS pour les commerçants et professionnels en Afrique (Cameroun, Tchad, etc.).
+const SYSTEM_PROMPT = `Tu es l'IA Guide amicale et 100% GRATUITE de "InnovTech MHA Infinity" (Encaisse), un SaaS pour les commerçants et professionnels en Afrique (Cameroun, Tchad, etc.).
 RÈGLES STRICTES DE RÉPONSE :
 - Parle en français très simple, comme un ami qui aide. Zéro mot compliqué.
 - 3 à 4 phrases maximum au total, courtes et claires.
 - Comprends le client même s'il écrit avec des fautes d'orthographe ou en français parlé.
-- Donne TOUJOURS ces 3 parties exactes :
+- Donne TOUJOURS ces 3 parties courtes :
 1. Où cliquer : (le chemin exact et les noms exacts des boutons)
 2. Quoi faire : (action simple étape par étape)
 3. Exemple : (un exemple concret d'Afrique / FCFA)
 
 CONNAISSANCE DES 7 SERVICES :
 1. Encaisse Boutique : Vendre produits, gérer le stock, facture Excel, paiement Mobile Money.
-   - Si le client veut vendre : "Clique sur Encaisse Boutique (menu Services ou Catalogue), puis + Ajouter produit, puis Documents > Créer facture."
+   - Si le client veut vendre : "Pour vendre, clique sur Encaisse Boutique, puis + Ajouter produit, puis Créer facture. Tu veux que je te montre ?"
 2. École : Gérer élèves, frais scolaires, notes.
    - Pour inscrire un élève : Menu Services > Choisir École > bouton + Ajouter un élève > remplis nom, classe et frais scolaires en FCFA.
 3. Clinique : Gérer patients, consultations, ordonnances.
@@ -34,7 +31,7 @@ CONNAISSANCE DES FONCTIONS CLÉS :
 - Facture Excel : Menu Documents > clique sur "📊 Tableau Excel Intégré". Quantité x Prix Unitaire se calcule tout seul. Utilise "+ Ajouter une ligne", puis "Exporter Excel (.xlsx)" ou "Imprimer / PDF".
 - Mon solde : C'est ton argent total = Solde Mobile Money (Orange Money, MTN MoMo, Wave) + Solde Carte Bancaire (Visa / Mastercard). Visible sur le Dashboard (Tableau de bord) et dans la page Clients (bouton "Voir solde").
 - Lien Facebook : Dans Clients, chaque client a un champ "Lien Facebook" et une icône Facebook bleue cliquable dans sa fiche et sur ses factures.
-- Prix de l'abonnement : Gratuit (essai 7 jours), Pro 5 000 FCFA / mois, Business 15 000 FCFA / mois. Seule l'offre Payée donne accès à l'IA Guide.
+- Prix de l'abonnement : L'IA Guide est 100% gratuite pour tous. Les offres SaaS sont : Gratuit (essai 7 jours), Pro 5 000 FCFA / mois, Business 15 000 FCFA / mois.
 - Comment payer : Orange Money (640 633 034), MTN MoMo (651 465 708) au nom de MAHAMAT BOUBA, Wave, Carte Bancaire ou Espèces. Aide WhatsApp : +235 66 26 85 03.
 - Si le client est perdu ("je ne comprends pas", "où je clique ?", "comment on fait ?") : donne directement le chemin exact depuis le menu principal avec les noms exacts des boutons.`;
 
@@ -97,7 +94,7 @@ function buildLocalGuideReply(question: string): {
       return {
         service,
         reponse:
-          "1. Où cliquer : Clique sur Encaisse Boutique (menu Catalogue), puis + Ajouter produit, puis Documents > Créer facture.\n2. Quoi faire : Ajoute le nom et le prix de ton produit, puis crée la facture pour encaisser par Mobile Money.\n3. Exemple : Tu ajoutes « Sac de riz 25kg » à 15 000 FCFA, puis tu envoies la facture au client.",
+          "Pour vendre, clique sur Encaisse Boutique, puis + Ajouter produit, puis Créer facture.\n1. Où cliquer : Menu Catalogue (Encaisse Boutique) > + Ajouter produit > puis Documents > Créer facture.\n2. Quoi faire : Ajoute le nom et le prix de ton produit, puis envoie la facture au client.\n3. Exemple : « Sac de riz 25kg » à 15 000 FCFA payé par Orange Money.",
       };
     case "École":
       return {
@@ -157,37 +154,15 @@ function buildLocalGuideReply(question: string): {
       return {
         service,
         reponse:
-          "1. Où cliquer : Va dans le menu Abonnement (ou Tarifs) pour voir les offres : Gratuit (7 jours), Pro 5 000 FCFA/mois et Business 15 000 FCFA/mois.\n2. Quoi faire : Paie par Orange Money (640 633 034), MTN MoMo (651 465 708) au nom de MAHAMAT BOUBA, Wave, Carte Bancaire ou Espèces. Seule l'offre Payée donne accès à l'IA.\n3. Exemple : Envoie 5 000 FCFA sur Orange Money 640 633 034 puis écris au +235 66 26 85 03 sur WhatsApp.",
+          "1. Où cliquer : Va dans le menu Abonnement (ou Tarifs). L'IA Guide est 100% gratuite pour tous !\n2. Quoi faire : Offres SaaS : Gratuit (7 jours), Pro 5 000 FCFA/mois, Business 15 000 FCFA/mois. Paiement par Orange Money (640 633 034), MTN MoMo (651 465 708), Wave, Carte Bancaire ou Espèces.\n3. Exemple : Envoie 5 000 FCFA sur Orange Money 640 633 034 au nom de MAHAMAT BOUBA.",
       };
     default:
       return {
         service: "Général",
         reponse:
-          "1. Où cliquer : Regarde le menu à gauche (ou en bas sur téléphone) : Tableau de bord, Clients, Produits, Documents, Services et Abonnement.\n2. Quoi faire : Choisis d'abord ton métier dans Services, ajoute un client dans Clients, puis fais ta première facture dans Documents.\n3. Exemple : Clique sur Documents > « 📊 Tableau Excel Intégré » pour créer ta première facture en 10 secondes.",
+          "1. Où cliquer : Regarde le menu : Tableau de bord, Clients, Produits, Documents, Services et Tarifs.\n2. Quoi faire : Choisis d'abord ton métier dans Services, ajoute un client dans Clients, puis fais ta première facture dans Documents.\n3. Exemple : Clique sur Documents > « 📊 Tableau Excel Intégré » pour créer ta première facture en 10 secondes.",
       };
   }
-}
-
-async function checkPaidAccess(supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) {
-  const [subRes, adminRpcRes, profileRes] = await Promise.all([
-    supabase
-      .from("subscriptions")
-      .select("status")
-      .eq("user_id", userId)
-      .maybeSingle(),
-    supabase.rpc("is_platform_admin"),
-    supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .maybeSingle(),
-  ]);
-
-  const isAdmin =
-    Boolean(adminRpcRes?.data) || profileRes?.data?.role === "admin";
-  const isPaid = subRes?.data?.status === "active";
-
-  return { isPaid: isPaid || isAdmin, isAdmin };
 }
 
 export async function GET() {
@@ -200,17 +175,6 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({
         authenticated: false,
-        isPaid: false,
-        messages: [],
-      });
-    }
-
-    const { isPaid } = await checkPaidAccess(supabase, user.id);
-    if (!isPaid) {
-      return NextResponse.json({
-        authenticated: true,
-        isPaid: false,
-        message: BLOCKED_MSG,
         messages: [],
       });
     }
@@ -224,13 +188,11 @@ export async function GET() {
 
     return NextResponse.json({
       authenticated: true,
-      isPaid: true,
       messages: error ? [] : data || [],
     });
   } catch {
     return NextResponse.json({
       authenticated: false,
-      isPaid: false,
       messages: [],
     });
   }
@@ -245,26 +207,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Écris ta question d'abord." },
         { status: 400 }
-      );
-    }
-
-    const supabase = await createServerSupabase();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: BLOCKED_MSG, requiresPayment: true },
-        { status: 403 }
-      );
-    }
-
-    const { isPaid } = await checkPaidAccess(supabase, user.id);
-    if (!isPaid) {
-      return NextResponse.json(
-        { error: BLOCKED_MSG, requiresPayment: true },
-        { status: 403 }
       );
     }
 
@@ -315,19 +257,26 @@ export async function POST(request: Request) {
       reponse = buildLocalGuideReply(question).reponse;
     }
 
-    // Sauvegarde dans ia_guide_conversations (ne bloque pas la réponse si la migration n'est pas encore exécutée)
+    // Sauvegarde dans ia_guide_conversations si l'utilisateur est connecté (sinon réponse directe 100% gratuite)
     let saved = false;
     try {
-      const { error: insertErr } = await supabase
-        .from("ia_guide_conversations")
-        .insert({
-          user_id: user.id,
-          question,
-          reponse,
-          service_concerne: detectedService,
-        });
-      if (!insertErr) {
-        saved = true;
+      const supabase = await createServerSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { error: insertErr } = await supabase
+          .from("ia_guide_conversations")
+          .insert({
+            user_id: user.id,
+            question,
+            reponse,
+            service_concerne: detectedService,
+          });
+        if (!insertErr) {
+          saved = true;
+        }
       }
     } catch {
       saved = false;
