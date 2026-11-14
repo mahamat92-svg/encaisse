@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
+import { AgricultureAiSection } from "@/components/AgricultureAiSection";
 import { useAppState } from "@/components/AppContext";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -632,6 +633,34 @@ ${desc}
           <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-extrabold">
             {formSuccess}
           </div>
+        ) : null}
+
+        {/* 6 CARTES IA AGRICULTURE (uniquement dans la vue Agriculture existante) */}
+        {org.businessType === "agriculture" ||
+        category === "Agriculture & Élevage" ||
+        products.some((p) => p.category === "Agriculture & Élevage") ? (
+          <AgricultureAiSection
+            isSubscriptionPaid={isSubscriptionPaid}
+            onAddTreatmentProduct={(title, suggestedPrice, desc) => {
+              setCategory("Agriculture & Élevage");
+              setSubCategory("Intrants");
+              setAgriType("Pesticides");
+              setName(title);
+              setPrice(String(suggestedPrice));
+              setDescription(desc);
+              setShowForm(true);
+            }}
+            onPutHarvestOnSale={(crop, bags, pricePerBag) => {
+              setCategory("Agriculture & Élevage");
+              setSubCategory("Cultures");
+              setAgriType(crop);
+              setName(crop);
+              setUnit("Sac 50kg");
+              setStockQty(String(bags));
+              setPrice(String(pricePerBag));
+              setShowForm(true);
+            }}
+          />
         ) : null}
 
         {/* ÉTAPE 2 : FORMULAIRE AJOUTER UN SERVICE / PRODUIT */}

@@ -307,22 +307,32 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {BUSINESS_SERVICES.map((srv) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
+            {BUSINESS_SERVICES.map((srv) => {
+              const serviceImageMap: Record<string, string> = {
+                boutique: "/service-boutique.jpg",
+                ecole: "/service-ecole.jpg",
+                clinique: "/service-clinique.jpg",
+                immobilier: "/service-immobilier.jpg",
+                artisan: "/service-artisan.jpg",
+                ong: "/service-ong.jpg",
+                agriculture: "/agriculture-hero.jpg",
+              };
+              const cardImg = serviceImageMap[srv.id] || "/service-boutique.jpg";
+              return (
               <div
                 key={srv.id}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full"
               >
-                {srv.id === "agriculture" ? (
-                  <div className="h-36 w-full overflow-hidden bg-emerald-950">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/agriculture-hero.jpg"
-                      alt="Agriculture et Élevage"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : null}
+                <div className="h-36 w-full overflow-hidden bg-emerald-950 shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={cardImg}
+                    alt={srv.title}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-5">
                   <div className="space-y-3">
                     <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-2xl">
@@ -354,7 +364,8 @@ export default function HomePage() {
                   </Link>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
