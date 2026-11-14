@@ -78,7 +78,9 @@ export function FapshiSubscriptionCheckout({
       if (data?.fapshiStatus === "FAILED" || data?.fapshiStatus === "EXPIRED") {
         stopPolling();
         setStatusType("error");
-        setStatusMessage("Paiement échoué, réessaie");
+        setStatusMessage(
+          data?.message || data?.error || "Paiement échoué, réessaie"
+        );
         onSuccess?.();
         return true;
       }

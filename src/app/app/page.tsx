@@ -750,12 +750,22 @@ export default function DashboardPage() {
               Suivi des paiements Mobile Money (Orange Money / MTN MoMo) via Fapshi Direct Pay.
             </p>
           </div>
-          <Link
-            href="/app/abonnement"
-            className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-extrabold"
-          >
-            + Payer via Fapshi
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="https://stores.fapshi.com/innovtech-encaisse"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-[#166534] text-xs font-extrabold"
+            >
+              🏪 Boutique Fapshi
+            </a>
+            <Link
+              href="/app/abonnement"
+              className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl bg-[#166534] hover:bg-[#14532D] text-white text-xs font-extrabold"
+            >
+              + Payer via Fapshi
+            </Link>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
