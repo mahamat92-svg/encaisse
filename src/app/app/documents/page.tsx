@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useAppState } from "@/components/AppContext";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
+import { ExcelInvoiceTable } from "@/components/ExcelInvoiceTable";
 import {
   buildInvoiceWhatsAppMessage,
   formatAmountNumber,
@@ -36,6 +37,7 @@ export default function DocumentsPage() {
 
   const [filter, setFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [showExcelMode, setShowExcelMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastCreated, setLastCreated] = useState<CreatedInvoiceShare | null>(
@@ -201,14 +203,25 @@ export default function DocumentsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm"
-        >
-          {showCreate ? "Fermer" : "+ Créer une facture"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowExcelMode(!showExcelMode)}
+            className="px-4 py-2.5 rounded-xl bg-[#0B1F3A] hover:bg-[#132D54] text-white text-xs font-extrabold shadow-sm"
+          >
+            {showExcelMode ? "Fermer Excel" : "📊 Tableau Excel Intégré"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreate(!showCreate)}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm"
+          >
+            {showCreate ? "Fermer" : "+ Créer une facture"}
+          </button>
+        </div>
       </div>
+
+      {showExcelMode ? <ExcelInvoiceTable /> : null}
 
       {/* Bandeau d'envoi WhatsApp immédiat après création de facture */}
       {lastCreated ? (

@@ -89,6 +89,7 @@ export interface NewClientInput {
   name: string;
   phone: string;
   city: string;
+  facebookUrl?: string;
   className?: string;
   payerName?: string;
 }
@@ -117,6 +118,7 @@ export interface NewDocumentInput {
   lines?: NewDocumentLineInput[];
   discountAmount?: number;
   paidAmount?: number;
+  paymentChannel?: "cash" | "mobile_money" | "bank_card";
   applyVat: boolean;
 }
 
@@ -484,6 +486,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           schoolYear: c.school_year || undefined,
           payerName: c.payer_name || undefined,
           payerPhone: c.payer_phone || undefined,
+          facebookUrl: c.facebook_url || "",
+          mobileMoneyBalance: Number(c.mobile_money_balance ?? 0),
+          bankCardBalance: Number(c.bank_card_balance ?? 0),
           balance: bal.balance,
           overdueBalance: bal.overdueBalance,
         };
@@ -828,7 +833,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       const supabase = createClient();
-      const { data, error: dbErr } = await supabase
+      let { data, error: dbErr } = await supabase
         .from("clients")
         .insert({
           org_id: liveOrg.id,
@@ -836,6 +841,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           name: trimmedName,
           phone: input.phone.trim() || null,
           city: input.city.trim() || null,
+          facebook_url: input.facebookUrl?.trim() || "",
           locale: "fr",
           class_name:
             mode === "etablissement" ? input.className?.trim() || null : null,
@@ -847,6 +853,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         .select("id")
         .single();
+
+      if (dbErr) {
+        const fb = await supabase
+          .from("clients")
+          .insert({
+            org_id: liveOrg.id,
+            kind: mode === "etablissement" ? "student" : "customer",
+            name: trimmedName,
+            phone: input.phone.trim() || null,
+            city: input.city.trim() || null,
+            locale: "fr",
+            class_name:
+              mode === "etablissement" ? input.className?.trim() || null : null,
+            school_year: mode === "etablissement" ? "2026-2027" : null,
+            payer_name:
+              mode === "etablissement" ? input.payerName?.trim() || null : null,
+            payer_phone:
+              mode === "etablissement" ? input.phone.trim() || null : null,
+          })
+          .select("id")
+          .single();
+        data = fb.data;
+        dbErr = fb.error;
+      }
 
       if (dbErr) {
         return { ok: false, error: dbErr.message };
@@ -1049,14 +1079,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const initialPaid = Math.max(0, Math.round(input.paidAmount ?? 0));
       if (initialPaid > 0) {
+        const method =
+          input.paymentChannel === "mobile_money"
+            ? "orange_money"
+            : input.paymentChannel === "bank_card"
+              ? "bank_transfer"
+              : "cash";
         await supabase.rpc("record_payment", {
           p_org: liveOrg.id,
           p_client: targetClientId,
           p_amount: initialPaid,
-          p_method: "cash",
-          p_reference: "Acompte à la création",
+          p_method: method,
+          p_reference:
+            input.paymentChannel === "mobile_money"
+              ? "Paiement Mobile Money (Facture Excel)"
+              : input.paymentChannel === "bank_card"
+                ? "Paiement Carte Bancaire (Facture Excel)"
+                : "Acompte à la création",
           p_document: draftDoc.id,
         });
+
+        // Mise à jour automatique du solde Mobile Money ou Carte Bancaire du client
+        if (
+          input.paymentChannel === "mobile_money" ||
+          input.paymentChannel === "bank_card"
+        ) {
+          try {
+            const existingCli = liveOrg.clients.find(
+              (c) => c.id === targetClientId
+            );
+            const col =
+              input.paymentChannel === "mobile_money"
+                ? "mobile_money_balance"
+                : "bank_card_balance";
+            const currentVal =
+              input.paymentChannel === "mobile_money"
+                ? Number(existingCli?.mobileMoneyBalance ?? 0)
+                : Number(existingCli?.bankCardBalance ?? 0);
+            await supabase
+              .from("clients")
+              .update({ [col]: currentVal + initialPaid })
+              .eq("id", targetClientId);
+          } catch {
+            // ignore if migration 0011 pending
+          }
+        }
       }
 
       await refreshOrgData();

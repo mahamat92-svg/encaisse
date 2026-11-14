@@ -18,6 +18,9 @@ export interface DemoClient {
   schoolYear?: string;
   payerName?: string;
   payerPhone?: string;
+  facebookUrl?: string;
+  mobileMoneyBalance?: number;
+  bankCardBalance?: number;
   balance: number;
   overdueBalance: number;
 }

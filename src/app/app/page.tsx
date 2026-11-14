@@ -11,6 +11,7 @@ import {
 } from "@/lib/format";
 import { buildReminderMessage } from "@/lib/ai-parser";
 import { WhatsAppIcon, WhatsAppShareButton } from "@/components/WhatsAppButton";
+import { RevenueBushChart } from "@/components/RevenueBushChart";
 
 interface CreatedWhatsAppSale {
   clientName: string;
@@ -35,6 +36,23 @@ export default function DashboardPage() {
   const [createdSale, setCreatedSale] = useState<CreatedWhatsAppSale | null>(
     null
   );
+  const [momoAdjustment, setMomoAdjustment] = useState<number>(0);
+  const [momoActionMode, setMomoActionMode] = useState<
+    "recharge" | "withdraw" | null
+  >(null);
+  const [momoAmountInput, setMomoAmountInput] = useState<string>("");
+
+  const clientsMomoSum = org.clients.reduce(
+    (s, c) => s + Number(c.mobileMoneyBalance ?? 0),
+    0
+  );
+  const clientsCardSum = org.clients.reduce(
+    (s, c) => s + Number(c.bankCardBalance ?? 0),
+    0
+  );
+  const momoDisplayBalance = Math.max(0, (clientsMomoSum || 850000) + momoAdjustment);
+  const cardDisplayBalance = clientsCardSum || 400000;
+  const totalWalletBalance = momoDisplayBalance + cardDisplayBalance;
 
   const totalSales = org.documents
     .filter((d) => d.docType === "invoice")
@@ -159,6 +177,110 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* 3 GRANDES CARTES SOLDE (Total + Mobile Money + Carte Bancaire) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-[#0B1F3A] to-[#132D54] text-white rounded-3xl p-5 sm:p-6 shadow-md space-y-2">
+          <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-300">
+            💼 Solde Total
+          </div>
+          <div className="text-2xl sm:text-3xl font-black">
+            {formatCFA(totalWalletBalance)}
+          </div>
+          <div className="text-xs text-slate-300">
+            Mobile Money + Carte Bancaire cumulés
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-3">
+          <div>
+            <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">
+              📱 Solde Mobile Money
+            </div>
+            <div className="text-2xl font-black text-[#0B1F3A] mt-1">
+              {formatCFA(momoDisplayBalance)}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              Orange Money · MTN MoMo · Wave
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setMomoActionMode(
+                  momoActionMode === "recharge" ? null : "recharge"
+                )
+              }
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+            >
+              + Recharger
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setMomoActionMode(
+                  momoActionMode === "withdraw" ? null : "withdraw"
+                )
+              }
+              className="px-3 py-1.5 rounded-xl border border-slate-300 bg-[#F8FAFC] hover:bg-slate-100 text-[#0B1F3A] text-xs font-extrabold"
+            >
+              ↗ Retirer
+            </button>
+          </div>
+          {momoActionMode ? (
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="number"
+                min={100}
+                value={momoAmountInput}
+                onChange={(e) => setMomoAmountInput(e.target.value)}
+                placeholder="Montant FCFA"
+                className="w-full px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const val = Math.max(0, Math.round(Number(momoAmountInput) || 0));
+                  if (val > 0) {
+                    setMomoAdjustment((prev) =>
+                      momoActionMode === "recharge" ? prev + val : prev - val
+                    );
+                  }
+                  setMomoAmountInput("");
+                  setMomoActionMode(null);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#0B1F3A] text-white text-xs font-extrabold shrink-0"
+              >
+                OK
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-2">
+          <div className="text-xs font-extrabold uppercase tracking-wider text-blue-700">
+            💳 Solde Carte Bancaire
+          </div>
+          <div className="text-2xl font-black text-[#0B1F3A]">
+            {formatCFA(cardDisplayBalance)}
+          </div>
+          <div className="text-xs font-bold text-slate-500">
+            Visa / Mastercard •••• 4521
+          </div>
+          <div className="pt-1">
+            <Link
+              href="/app/clients"
+              className="text-xs font-extrabold text-blue-700 hover:underline"
+            >
+              Voir les soldes clients →
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* BROUSSE DES REVENUS */}
+      <RevenueBushChart />
 
       {/* FEATURE 2 : Formulaire "Nouvelle vente WhatsApp" + bouton d'envoi automatique après sauvegarde */}
       {showWaForm ? (

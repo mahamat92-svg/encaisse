@@ -24,6 +24,7 @@ import {
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAppState } from "@/components/AppContext";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
+import { FacebookBlueIcon } from "@/components/ExcelInvoiceTable";
 import { WhatsAppShareButton } from "@/components/WhatsAppButton";
 
 interface InvoiceDataView {
@@ -536,6 +537,30 @@ function ProfessionalInvoiceViewInner({
                     </span>
                   ) : null}
                 </div>
+                {(() => {
+                  const matchedClient = activeOrg.clients.find(
+                    (c) =>
+                      c.name.toLowerCase() ===
+                        invoice.clientName.toLowerCase() ||
+                      (invoice.clientPhone && c.phone === invoice.clientPhone)
+                  );
+                  const fbUrl = matchedClient?.facebookUrl?.trim();
+                  if (!fbUrl) return null;
+                  const href = fbUrl.startsWith("http")
+                    ? fbUrl
+                    : `https://${fbUrl}`;
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1877F2] hover:underline"
+                    >
+                      <FacebookBlueIcon className="w-3.5 h-3.5" />
+                      <span>{fbUrl}</span>
+                    </a>
+                  );
+                })()}
                 <div className="text-xs text-slate-600">
                   Facture <strong>{invoice.number}</strong> · Date limite :{" "}
                   <strong>{formatDate(invoice.dueDate)}</strong>
